@@ -1,0 +1,11 @@
+{
+	"Input":"Raspistill",
+	"InputCodec":"JPEG",
+	"Output":"Files",
+	"OutputPath":"out/",
+	"TimelapseDuration":"3600",
+	"TimelapseInterval":"10",
+	"logging":"Debug",
+	"Suppress":"false",
+	"PoolStartElementSize":"1000000"
+}

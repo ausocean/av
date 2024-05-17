@@ -1,0 +1,10 @@
+[Unit]
+Description=Startup service for SCUHU, primarily configures and runs rvcl to record audio to file.
+
+[Service]
+Type=simple
+ExecStart=/home/pi/go/src/bitbucket.org/ausocean/av/scripts/scuhu_run.sh
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
