@@ -41,9 +41,6 @@ install: as_root make_dirs soft_copy_files rebuild syncreboot
 install_hard: as_root make_dirs hard_copy_files set_mac rebuild syncreboot
 	@echo "Hard install complete"
 
-install_hard_treat: as_root make_dirs hard_copy_files_treat set_mac syncreboot
-	@echo "Hard install complete"
-
 as_root:
 ifneq ($(USER),root)
 	$(error Must run as superuser!)
@@ -79,20 +76,6 @@ hard_copy_files:
 	fi
 	bash create_service.sh $(RUN_SCRIPT_DIR) $(BIN_DIR)
 	systemctl enable $(BIN_NAME).service
-	if [ -f /etc/netsender.conf ] ; then \
-		echo "Backed up netsender.conf to /etc/netsender.conf.bak"; \
-		cp /etc/netsender.conf /etc/netsender.conf.bak ; \
-	fi
-	printf "ma $(MA)\ndk $(DK)\n" > /etc/netsender.conf
-	bash permissions.sh
-
-hard_copy_files_treat:
-	if [ -f /etc/systemd/system/treatment.service ] ; then \
-		echo "/etc/systemd/system/treatment.service overwritten" ; \
-	fi
-	cp -f treatment.service /etc/systemd/system
-	systemctl enable treatment.service
-	chmod +x treatment_run.sh
 	if [ -f /etc/netsender.conf ] ; then \
 		echo "Backed up netsender.conf to /etc/netsender.conf.bak"; \
 		cp /etc/netsender.conf /etc/netsender.conf.bak ; \
