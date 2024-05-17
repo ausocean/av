@@ -23,6 +23,7 @@ require (
 )
 
 require (
+	bitbucket.org/ausocean/av v1.5.2 // indirect
 	git.sr.ht/~sbinet/gg v0.5.0 // indirect
 	github.com/Shopify/toxiproxy v2.1.4+incompatible // indirect
 	github.com/ajstarks/svgo v0.0.0-20211024235047-1546f124cd8b // indirect
