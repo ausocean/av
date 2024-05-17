@@ -1,0 +1,10 @@
+[Unit]
+Description=Netsender Client for Playing Sound
+
+[Service]
+Type=simple
+ExecStart=/home/pi/go/src/bitbucket.org/ausocean/av/init/speaker_run.sh
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
