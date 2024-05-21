@@ -1,12 +1,12 @@
 # Install files and directories required by speaker (netsender client, speaker driver software).
 
-# SET_MAC=true will create a dhcpcd.enter-hook for setting the MAC address. (MA must be specified).
+# SET_MAC=true will create a dhcpcd.enter-hook for setting the MAC address. (MA must be specified). This may not be desired if installing for a generic image.
 SET_MAC := true
 
 # CONFIG=true will write or overwrite the configuration file. (MA and DK must be specified). This may not be desired if installing for a generic image.
 CONFIG := true
 
-# BUILD=true will run go build to build the binary. This may not be desirable if cross compiling. This may not be desired if installing for a generic image.
+# BUILD=true will run go build to build the binary. This may not be desirable if cross compiling or installing for a generic image.
 BUILD := true
 
 # USER can be passed to customise the user under which the code is located.
