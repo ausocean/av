@@ -1,7 +1,7 @@
 #!/bin/sh -e
-# This script launches treatment on a pi, intended to run at boot time.
+# This script launches speaker on a pi, intended to run at boot time.
 
-TREATPATH=/home/pi/go/src/github.com/ausocean/av/cmd/treatment
+SPEAKERPATH=/home/pi/go/src/github.com/ausocean/av/cmd/speaker
 
 echo Set kernel parameters:
 # kernel settings to improve performance on Raspberry Pi
@@ -28,18 +28,18 @@ sudo ip addr show | grep inet
 exec 2> /var/log/netsender/stream.log
 exec 1>&2
 
-# set env, working dir and run treatment as pi user
+# set env, working dir and run speaker as pi user
 HOME=/home/pi
 GOPATH=$HOME/go
-TREATPATH=$GOPATH/src/github.com/ausocean/av/cmd/treatment
-PATH=$PATH:/usr/local/go/bin:$TREATPATH
-cd $TREATPATH
-sudo HOME=$HOME GOPATH=$GOPATH PATH=$PATH ./treatment
+SPEAKERPATH=$GOPATH/src/github.com/ausocean/av/cmd/speaker
+PATH=$PATH:/usr/local/go/bin:$SPEAKERPATH
+cd $SPEAKERPATH
+sudo HOME=$HOME GOPATH=$GOPATH PATH=$PATH ./speaker
 if [ $? -eq 0 ]
 then
-  echo "Successfully exited treatment"
+  echo "Successfully exited speaker"
   exit 0
 else
-  echo "treatment exited with code: $?" >&2
+  echo "speaker exited with code: $?" >&2
   exit 1
 fi

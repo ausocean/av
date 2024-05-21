@@ -1,4 +1,4 @@
-# Install files and directories required by treatment (speaker driver software).
+# Install files and directories required by speaker (speaker driver software).
 # This can also create a dhcpcd.enter-hook for setting the MAC address.
 # MA and DK can be passed to Make if it is for a hard (first-time) installation:
 # 	sudo MA=mac DK=dk make install_hard
@@ -6,7 +6,7 @@
 # USR can also be passsed to customise user under which the code is housed.
 USER := $(shell whoami)
 PATH := /usr/local/go/bin:$(PATH)
-BIN_NAME := treatment
+BIN_NAME := speaker
 BIN_DIR := /src/github.com/ausocean/av/cmd/$(BIN_NAME)
 
 .SILENT:make_dirs
@@ -29,7 +29,7 @@ ifneq ($(USER),root)
 endif
 
 rebuild:
-	@chmod +x treatment_run.sh
+	@chmod +x speaker_run.sh
 	@go build
 
 make_dirs:
