@@ -2,7 +2,7 @@
 USER := $(shell whoami)
 PATH := /usr/local/go/bin:$(PATH)
 BIN_NAME := vidforward
-BIN_DIR := /src/bitbucket.org/ausocean/av/cmd/$(BIN_NAME)
+BIN_DIR := /src/github.com/ausocean/av/cmd/$(BIN_NAME)
 
 .SILENT:soft_copy_files
 .SILENT:hard_copy_files

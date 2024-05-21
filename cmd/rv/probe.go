@@ -11,14 +11,13 @@ AUTHORS
   Russell Stanley <russell@ausocean.org>
 
 LICENSE
-  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved. 
+  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved.
 
   The Software and all intellectual property rights associated
   therewith, including but not limited to copyrights, trademarks,
   patents, and trade secrets, are and will remain the exclusive
   property of the Australian Ocean Lab (AusOcean).
 */
-
 
 package main
 
@@ -33,7 +32,7 @@ import (
 	"gonum.org/v1/gonum/stat"
 
 	"github.com/ausocean/av/codec/h264"
-	"github.com/ausocean/av/turbidity"
+	"github.com/ausocean/client/pi/turbidity"
 	"github.com/ausocean/utils/logging"
 )
 

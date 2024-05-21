@@ -29,8 +29,8 @@ import (
 	gotspsi "github.com/Comcast/gots/psi"
 	"github.com/pkg/errors"
 
-	"bitbucket.org/ausocean/av/container/mts/meta"
-	"bitbucket.org/ausocean/av/container/mts/psi"
+	"github.com/ausocean/av/container/mts/meta"
+	"github.com/ausocean/av/container/mts/psi"
 )
 
 const PacketSize = 188

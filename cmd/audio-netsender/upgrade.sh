@@ -4,7 +4,7 @@
 # and write tags to tags.conf upon success, exiting 0.
 # NB: Customize SrcDirs as needed to reflect dependencies.
 Usage="Usage: upgrade.sh [-d] tag"
-BaseDir=$GOPATH/src/bitbucket.org/ausocean
+BaseDir=$GOPATH/src/github.com/ausocean
 VarDir=/var/netsender
 LogFile=/var/log/netsender/stream.log
 SrcDirs=($BaseDir/utils $BaseDir/iot)

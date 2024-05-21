@@ -3,7 +3,7 @@ Description=looper is a utility to robustly loop a sound file from a raspberry p
 
 [Service]
 Type=simple
-ExecStart=/home/pi/go/src/bitbucket.org/ausocean/av/cmd/looper/pi_run.sh
+ExecStart=/home/pi/go/src/github.com/ausocean/av/cmd/looper/pi_run.sh
 Restart=on-failure
 
 [Install]

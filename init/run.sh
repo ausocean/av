@@ -11,7 +11,7 @@ fi
 # This is the user in the GOPATH e.g. for /home/pi/go the user is pi.
 gopath_user=$1
 
-# This is the dir of the binary from the GOPATH e.g. /src/bitbucket.org/ausocean/av/cmd/rv.
+# This is the dir of the binary from the GOPATH e.g. /src/github.com/ausocean/av/cmd/rv.
 bin_dir=$2
 
 # We'll get the bin name from the bin dir (assuming this is same as the bin dir name).

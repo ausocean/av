@@ -3,7 +3,7 @@ Description=Netsender Client for Playing and Recording Sound
 
 [Service]
 Type=simple
-ExecStart=/home/pi/go/src/bitbucket.org/ausocean/av/init/treatment_run.sh
+ExecStart=/home/pi/go/src/github.com/ausocean/av/init/treatment_run.sh
 Restart=on-failure
 
 [Install]

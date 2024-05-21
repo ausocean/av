@@ -1,7 +1,7 @@
 #!/bin/sh -e
 # This script launches treatment on a pi, intended to run at boot time.
 
-TREATPATH=/home/pi/go/src/bitbucket.org/ausocean/av/cmd/treatment
+TREATPATH=/home/pi/go/src/github.com/ausocean/av/cmd/treatment
 
 echo Set kernel parameters:
 # kernel settings to improve performance on Raspberry Pi
@@ -31,7 +31,7 @@ exec 1>&2
 # set env, working dir and run treatment as pi user
 HOME=/home/pi
 GOPATH=$HOME/go
-TREATPATH=$GOPATH/src/bitbucket.org/ausocean/av/cmd/treatment
+TREATPATH=$GOPATH/src/github.com/ausocean/av/cmd/treatment
 PATH=$PATH:/usr/local/go/bin:$TREATPATH
 cd $TREATPATH
 sudo HOME=$HOME GOPATH=$GOPATH PATH=$PATH ./treatment

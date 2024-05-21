@@ -8,7 +8,7 @@ if [ $# -ne 1 ]; then
   exit 1
 fi
 
-# This corresponds to the binary dir. e.g. /src/bitbucket.org/ausocean/av/cmd/vidforward.
+# This corresponds to the binary dir. e.g. /src/github.com/ausocean/av/cmd/vidforward.
 bin_dir=$1
 
 # This is the IP we'll run the host on.
