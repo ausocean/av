@@ -1,27 +1,39 @@
-# Install files and directories required by speaker (speaker driver software).
-# This can also create a dhcpcd.enter-hook for setting the MAC address.
-# MA and DK can be passed to Make if it is for a hard (first-time) installation:
-# 	sudo MA=mac DK=dk make install_hard
-# NB: The default (soft) install does not override conf files or set the MAC address.
-# USR can also be passsed to customise user under which the code is housed.
+# Install files and directories required by speaker (netsender client, speaker driver software).
+
+# SET_MAC=true will create a dhcpcd.enter-hook for setting the MAC address. (MA must be specified).
+SET_MAC := true
+
+# CONFIG=true will write or overwrite the configuration file. (MA and DK must be specified). This may not be desired if installing for a generic image.
+CONFIG := true
+
+# BUILD=true will run go build to build the binary. This may not be desirable if cross compiling. This may not be desired if installing for a generic image.
+BUILD := true
+
+# USER can be passed to customise the user under which the code is located.
 USER := $(shell whoami)
+
 PATH := /usr/local/go/bin:$(PATH)
 BIN_NAME := speaker
 BIN_DIR := /src/github.com/ausocean/av/cmd/$(BIN_NAME)
 
-.SILENT:make_dirs
-.SILENT:hard_copy_files
-.SILENT:set_mac
+
 .SILENT:clean
 
-install: as_root make_dirs hard_copy_files rebuild syncreboot
-	@echo "Install complete"
-
-install_no_rebuild: as_root make_dirs hard_copy_files syncreboot
-	@echo "Install complete"
-
-install_set_mac: as_root make_dirs hard_copy_files set_mac rebuild syncreboot
-	@echo "Install complete, MAC address set to $(MA)"
+install: as_root make_dirs write_service
+ifeq ($(BUILD),true)
+	$(MAKE) rebuild
+	echo "binary built"
+endif
+ifeq ($(CONFIG),true)
+	$(MAKE) write_conf
+	echo "conf and service files created/overwritten"
+endif
+ifeq ($(SET_MAC),true)
+	$(MAKE) set_mac
+	echo "MAC address set to $(MA)"
+endif
+	$(MAKE) syncreboot
+	echo "install complete"
 
 as_root:
 ifneq ($(USER),root)
@@ -42,18 +54,20 @@ make_dirs:
 		chmod guo+rwx /var/log/netsender; \
 	fi
 
-hard_copy_files:
+write_service:
+	@if [ -f /etc/systemd/system/$(BIN_NAME).service ] ; then \
+		echo "/etc/systemd/system/$(BIN_NAME).service overwritten" ; \
+	fi
+	@cp -f $(BIN_NAME).service /etc/systemd/system
+	@systemctl enable $(BIN_NAME).service
+
+write_conf:
 ifeq ($(MA),)
 	$(error "Must provide MAC using MA=")
 endif
 ifeq ($(DK),)
 	$(error "Must provide device key using DK=")
 endif
-	@if [ -f /etc/systemd/system/$(BIN_NAME).service ] ; then \
-		echo "/etc/systemd/system/$(BIN_NAME).service overwritten" ; \
-	fi
-	@cp -f $(BIN_NAME).service /etc/systemd/system
-	@systemctl enable $(BIN_NAME).service
 	@if [ -f /etc/netsender.conf ] ; then \
 		echo "Backed up netsender.conf to /etc/netsender.conf.bak"; \
 		cp /etc/netsender.conf /etc/netsender.conf.bak ; \
