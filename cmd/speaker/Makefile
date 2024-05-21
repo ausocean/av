@@ -95,4 +95,4 @@ clean: as_root
 	rm -rf /var/log/netsender
 	rm -rf /etc/systemd/system/$(BIN_NAME).service
 	rm -rf /etc/netsender.conf
-	@echo "Clean complete"
+	echo "Clean complete"
