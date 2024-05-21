@@ -5,8 +5,8 @@
 USER := $(shell whoami)
 PATH := /usr/local/go/bin:$(PATH)
 BIN_NAME := rv
-BIN_DIR := /src/bitbucket.org/ausocean/av/cmd/$(BIN_NAME)
-RUN_SCRIPT_DIR := /src/bitbucket.org/ausocean/av/init/run.sh
+BIN_DIR := /src/github.com/ausocean/av/cmd/$(BIN_NAME)
+RUN_SCRIPT_DIR := /src/github.com/ausocean/av/init/run.sh
 
 # Change this to withcv if you wish to use CV.
 BUILD_TAG :=
@@ -79,7 +79,7 @@ syncreboot:
 	@if [ -e ../../utils ]; then \
 		cd ../../utils; git checkout -f master; git pull; \
 	else \
-		cd ../../; git clone https://bitbucket.org/ausocean/utils; \
+		cd ../../; git clone https://github.com/ausocean/utils; \
 	fi
 	@cd ../../utils/cmd/syncreboot; make; make install
 

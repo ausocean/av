@@ -35,7 +35,7 @@ exec 1>&2
 # set env, working dir and run as pi user
 HOME=/home/pi
 GOPATH=$HOME/go
-BINPATH=$GOPATH/src/bitbucket.org/ausocean/av/exp/$BINNAME
+BINPATH=$GOPATH/src/github.com/ausocean/av/exp/$BINNAME
 PATH=$PATH:/usr/local/go/bin:$BINPATH
 cd $BINPATH
 sudo HOME=$HOME GOPATH=$GOPATH PATH=$PATH ./$BINNAME $ARGS

@@ -9,10 +9,10 @@ if [ $# -ne 2 ]; then
 fi
 
 # This corresponds to the path beyond the GOPATH corresponding to the run script
-# of the client. e.g. "/src/bitbucket.org/ausocean/av/init/run.sh"
+# of the client. e.g. "/src/github.com/ausocean/av/init/run.sh"
 run_script_dir=$1
 
-# This corresponds to the binary dir. e.g. /src/bitbucket.org/ausocean/av/cmd/rv
+# This corresponds to the binary dir. e.g. /src/github.com/ausocean/av/cmd/rv
 bin_dir=$2
 
 # Get the bin name (assuming this is at the end of the bin_dir).
