@@ -31,7 +31,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Comcast/gots/packet"
+	"github.com/Comcast/gots/v2/packet"
 
 	"github.com/ausocean/av/container/mts"
 	"github.com/ausocean/av/protocol/rtmp"

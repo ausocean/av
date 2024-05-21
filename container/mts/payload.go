@@ -10,14 +10,13 @@ AUTHOR
   Saxon A. Nelson-Milton <saxon@ausocean.org>
 
 LICENSE
-  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved. 
+  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved.
 
   The Software and all intellectual property rights associated
   therewith, including but not limited to copyrights, trademarks,
   patents, and trade secrets, are and will remain the exclusive
   property of the Australian Ocean Lab (AusOcean).
 */
-
 
 package mts
 
@@ -26,8 +25,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/Comcast/gots/packet"
-	"github.com/Comcast/gots/pes"
+	"github.com/Comcast/gots/v2/packet"
+	"github.com/Comcast/gots/v2/pes"
 )
 
 // Extract extracts the media, PTS, stream ID and meta for an MPEG-TS clip given
@@ -58,7 +57,7 @@ func Extract(p []byte) (*Clip, error) {
 	// Go through the MPEGT-TS packets.
 	var pkt packet.Packet
 	for i := 0; i < l; i += PacketSize {
-		// We will use comcast/gots Packet type, so copy in.
+		// We will use comcast/gots/v2 Packet type, so copy in.
 		copy(pkt[:], p[i:i+PacketSize])
 
 		switch pkt.PID() {

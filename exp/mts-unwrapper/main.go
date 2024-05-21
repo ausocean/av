@@ -3,14 +3,13 @@ AUTHORS
   Trek Hopton <trek@ausocean.org>
 
 LICENSE
-  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved. 
+  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved.
 
   The Software and all intellectual property rights associated
   therewith, including but not limited to copyrights, trademarks,
   patents, and trade secrets, are and will remain the exclusive
   property of the Australian Ocean Lab (AusOcean).
 */
-
 
 // mts-unwrapper will unwrap an MPEG-TS encoded file and output the data contained in the PES to a specified file.
 package main
@@ -25,8 +24,8 @@ import (
 	"github.com/ausocean/av/container/mts/meta"
 	"github.com/ausocean/av/container/mts/psi"
 
-	"github.com/Comcast/gots/packet"
-	"github.com/Comcast/gots/pes"
+	"github.com/Comcast/gots/v2/packet"
+	"github.com/Comcast/gots/v2/pes"
 )
 
 func main() {
