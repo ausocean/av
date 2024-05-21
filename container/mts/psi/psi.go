@@ -25,7 +25,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/Comcast/gots/psi"
+	"github.com/Comcast/gots/v2/psi"
 )
 
 // PacketSize of psi (without MPEG-TS header)

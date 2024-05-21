@@ -10,14 +10,13 @@ AUTHORS
   Trek Hopton <trek@ausocean.org>
 
 LICENSE
-  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved. 
+  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved.
 
   The Software and all intellectual property rights associated
   therewith, including but not limited to copyrights, trademarks,
   patents, and trade secrets, are and will remain the exclusive
   property of the Australian Ocean Lab (AusOcean).
 */
-
 
 package mts
 
@@ -29,8 +28,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Comcast/gots/packet"
-	gotspsi "github.com/Comcast/gots/psi"
+	"github.com/Comcast/gots/v2/packet"
+	gotspsi "github.com/Comcast/gots/v2/psi"
 	"github.com/pkg/errors"
 
 	"github.com/ausocean/av/container/mts/meta"

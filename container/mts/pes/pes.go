@@ -20,7 +20,7 @@ LICENSE
 // Package pes provides encoding of PES packets.
 package pes
 
-import "github.com/Comcast/gots"
+import "github.com/Comcast/gots/v2"
 
 const MaxPesSize = 64 * 1 << 10
 
