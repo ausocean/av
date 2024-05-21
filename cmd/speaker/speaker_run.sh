@@ -1,7 +1,7 @@
 #!/bin/sh -e
 # This script launches speaker on a pi, intended to run at boot time.
 
-SPEAKERPATH=/home/pi/go/src/bitbucket.org/ausocean/av/cmd/speaker
+SPEAKERPATH=/home/pi/go/src/github.com/ausocean/av/cmd/speaker
 
 echo Set kernel parameters:
 # kernel settings to improve performance on Raspberry Pi
@@ -31,7 +31,7 @@ exec 1>&2
 # set env, working dir and run speaker as pi user
 HOME=/home/pi
 GOPATH=$HOME/go
-SPEAKERPATH=$GOPATH/src/bitbucket.org/ausocean/av/cmd/speaker
+SPEAKERPATH=$GOPATH/src/github.com/ausocean/av/cmd/speaker
 PATH=$PATH:/usr/local/go/bin:$SPEAKERPATH
 cd $SPEAKERPATH
 sudo HOME=$HOME GOPATH=$GOPATH PATH=$PATH ./speaker

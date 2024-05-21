@@ -17,6 +17,53 @@ LICENSE
   property of the Australian Ocean Lab (AusOcean).
 */
 
+// Package pes provides encoding of PES packets.
+package pes
+
+import "github.com/Comcast/gots"
+
+const MaxPesSize = 64 * 1 << 10
+
+/*
+The below data struct encapsulates the fields of an PES packet. Below is
+the formatting of a PES packet for reference!
+
+													PES Packet Formatting
+============================================================================
+| octet no | bit 0 | bit 1 | bit 2 | bit 3 | bit 4 | bit 5 | bit 6 | bit 7 |
+============================================================================
+| octet 0  | 0x00                                                          |
+----------------------------------------------------------------------------
+| octet 1  | 0x00                                                          |
+----------------------------------------------------------------------------
+| octet 2  | 0x01                                                          |
+----------------------------------------------------------------------------
+| octet 3  | Stream ID (0xE0 for video)                                    |
+----------------------------------------------------------------------------
+| octet 4  | PES Packet Length (no of bytes in packet after this field)    |
+----------------------------------------------------------------------------
+| octet 5  | PES Length cont.                                              |
+----------------------------------------------------------------------------
+| octet 6  | 0x2           |  SC           | Prior | DAI   | Copyr | Copy  |
+----------------------------------------------------------------------------
+| octet 7  | PDI           | ESCRF | ESRF  | DSMTMF| ACIF  | CRCF  | EF    |
+----------------------------------------------------------------------------
+| octet 8  | PES Header Length                                             |
+----------------------------------------------------------------------------
+| optional | optional fields (determined by flags above) (variable Length) |
+----------------------------------------------------------------------------
+| -        | ...                                                           |
+----------------------------------------------------------------------------
+| optional | stuffing bytes (varible length)                               |
+----------------------------------------------------------------------------
+| -        | ...                                                           |
+----------------------------------------------------------------------------
+| Optional | Data (variable length)                                        |
+----------------------------------------------------------------------------
+| -        | ...                                                           |
+----------------------------------------------------------------------------
+*/
+
 // TODO: add DSMTM, ACI, CRC, Ext fields
 type Packet struct {
 	StreamID     byte   // Type of stream

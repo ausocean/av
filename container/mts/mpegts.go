@@ -19,6 +19,114 @@ LICENSE
   property of the Australian Ocean Lab (AusOcean).
 */
 
+// Package mts provides MPEGT-TS (mts) encoding and related functions.
+package mts
+
+import (
+	"fmt"
+
+	"github.com/Comcast/gots/packet"
+	gotspsi "github.com/Comcast/gots/psi"
+	"github.com/pkg/errors"
+
+	"github.com/ausocean/av/container/mts/meta"
+	"github.com/ausocean/av/container/mts/psi"
+)
+
+const PacketSize = 188
+
+// Standard program IDs for program specific information MPEG-TS packets.
+const (
+	SdtPid = 17
+	PatPid = 0
+	PmtPid = 4096
+)
+
+// HeadSize is the size of an MPEG-TS packet header.
+const HeadSize = 4
+
+// Consts relating to adaptation field.
+const (
+	AdaptationIdx              = 4                 // Index to the adaptation field (index of AFL).
+	AdaptationControlIdx       = 3                 // Index to octet with adaptation field control.
+	AdaptationFieldsIdx        = AdaptationIdx + 1 // Adaptation field index is the index of the adaptation fields.
+	DefaultAdaptationSize      = 2                 // Default size of the adaptation field.
+	AdaptationControlMask      = 0x30              // Mask for the adaptation field control in octet 3.
+	DefaultAdaptationBodySize  = 1                 // Default size of the adaptation field body.
+	DiscontinuityIndicatorMask = 0x80              // Mask for the discontinuity indicator at the discontinuity indicator idk.
+	DiscontinuityIndicatorIdx  = AdaptationIdx + 1 // The index at which the discontinuity indicator is found in an MTS packet.
+)
+
+// TODO: make this better - currently doesn't make sense.
+const (
+	HasPayload         = 0x1
+	HasAdaptationField = 0x2
+)
+
+/*
+Packet encapsulates the fields of an MPEG-TS packet. Below is
+the formatting of an MPEG-TS packet for reference!
+
+============================================================================
+| octet no | bit 0 | bit 1 | bit 2 | bit 3 | bit 4 | bit 5 | bit 6 | bit 7 |
+============================================================================
+| octet 0  | sync byte (0x47)                                              |
+----------------------------------------------------------------------------
+| octet 1  | TEI   | PUSI  | Prior | PID                                   |
+----------------------------------------------------------------------------
+| octet 2  | PID cont.                                                     |
+----------------------------------------------------------------------------
+| octet 3  | TSC           | AFC           | CC                            |
+----------------------------------------------------------------------------
+| octet 4  | AFL                                                           |
+----------------------------------------------------------------------------
+| octet 5  | DI    | RAI   | ESPI  | PCRF  | OPCRF | SPF   | TPDF  | AFEF  |
+----------------------------------------------------------------------------
+| optional | PCR (48 bits => 6 bytes)                                      |
+----------------------------------------------------------------------------
+| -        | PCR cont.                                                     |
+----------------------------------------------------------------------------
+| -        | PCR cont.                                                     |
+----------------------------------------------------------------------------
+| -        | PCR cont.                                                     |
+----------------------------------------------------------------------------
+| -        | PCR cont.                                                     |
+----------------------------------------------------------------------------
+| -        | PCR cont.                                                     |
+----------------------------------------------------------------------------
+| optional | OPCR (48 bits => 6 bytes)                                     |
+----------------------------------------------------------------------------
+| -        | OPCR cont.                                                    |
+----------------------------------------------------------------------------
+| -        | OPCR cont.                                                    |
+----------------------------------------------------------------------------
+| -        | OPCR cont.                                                    |
+----------------------------------------------------------------------------
+| -        | OPCR cont.                                                    |
+----------------------------------------------------------------------------
+| -        | OPCR cont.                                                    |
+----------------------------------------------------------------------------
+| optional | SC                                                            |
+----------------------------------------------------------------------------
+| optional | TPDL                                                          |
+----------------------------------------------------------------------------
+| optional | TPD (variable length)                                         |
+----------------------------------------------------------------------------
+| -        | ...                                                           |
+----------------------------------------------------------------------------
+| optional | Extension (variable length)                                   |
+----------------------------------------------------------------------------
+| -        | ...                                                           |
+----------------------------------------------------------------------------
+| optional | Stuffing (variable length)                                    |
+----------------------------------------------------------------------------
+| -        | ...                                                           |
+----------------------------------------------------------------------------
+| optional | Payload (variable length)                                     |
+----------------------------------------------------------------------------
+| -        | ...                                                           |
+----------------------------------------------------------------------------
+*/
 type Packet struct {
 	TEI      bool   // Transport Error Indicator
 	PUSI     bool   // Payload Unit Start Indicator

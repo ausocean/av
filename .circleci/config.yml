@@ -1,0 +1,33 @@
+version: 2
+jobs:
+  build:
+    docker:
+      # CircleCI Go images available at: https://hub.docker.com/r/cimg/go
+      - image: cimg/go:1.18
+        environment:
+          GO111MODULE: "on"
+
+    working_directory: ~/go/src/github.com/ausocean/av
+
+    environment:
+      TEST_RESULTS: /tmp/test-results
+
+    steps:
+      - checkout
+
+      - run: git clone --depth=1 https://github.com/ausocean/test.git ${GOPATH}/src/github.com/ausocean/test
+
+      - restore_cache:
+          keys:
+            - v1-pkg-cache
+
+      - run: go get -d -t -v ./...
+
+      - run: go build -v ./...
+
+      - run: go test -v ./...
+
+      - save_cache:
+          key: v1-pkg-cache
+          paths:
+            - "/go/pkg"

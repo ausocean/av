@@ -4,7 +4,7 @@ go 1.22.2
 
 require (
 	github.com/Comcast/gots v1.0.4
-	github.com/ausocean/client v0.0.0-20240516110313-64ae7b9e6f45
+	github.com/ausocean/client v1.0.0
 	github.com/ausocean/utils v0.0.0-20240516071050-fe6d74a8ac16
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf
 	github.com/fsnotify/fsnotify v1.7.0
@@ -18,7 +18,6 @@ require (
 	github.com/yobert/alsa v0.0.0-20230126204319-85bb7ee02e5b
 	gocv.io/x/gocv v0.36.1
 	gonum.org/v1/gonum v0.15.0
-	gonum.org/v1/plot v0.14.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 
@@ -43,4 +42,5 @@ require (
 	golang.org/x/image v0.14.0 // indirect
 	golang.org/x/sys v0.20.0 // indirect
 	golang.org/x/text v0.15.0 // indirect
+	gonum.org/v1/plot v0.14.0 // indirect
 )

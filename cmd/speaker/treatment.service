@@ -1,0 +1,10 @@
+[Unit]
+Description=Netsender Client for Playing and Recording Sound
+
+[Service]
+Type=simple
+ExecStart=/home/pi/go/src/github.com/ausocean/av/init/treatment_run.sh
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
