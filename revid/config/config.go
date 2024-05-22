@@ -290,12 +290,3 @@ func (c *Config) Update(vars map[string]string) {
 func (c *Config) LogInvalidField(name string, def interface{}) {
 	c.Logger.Info(name+" bad or unset, defaulting", name, def)
 }
-
-func stringInSlice(want string, slice []string) bool {
-	for _, s := range slice {
-		if s == want {
-			return true
-		}
-	}
-	return false
-}
