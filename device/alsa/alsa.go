@@ -359,6 +359,9 @@ func (d *ALSA) input() {
 	// Read audio in 1 minute sections.
 	go chunkingRead(d, ch)
 
+	goodCount := 0
+	badCount := 0
+
 	for {
 		// Check mode.
 		d.mu.Lock()
@@ -392,10 +395,13 @@ func (d *ALSA) input() {
 		n, err := d.buf.Write(toWrite.Data)
 		switch err {
 		case nil:
-			d.l.Debug("wrote audio to ringbuffer", "length", n, "full chunks", d.buf.Len())
+			goodCount++
+			d.l.Debug("wrote audio to ringbuffer", "length", n, "full chunks", d.buf.Len(), "throughput", fmt.Sprintf("%.2f", float64(goodCount)/float64(goodCount + badCount)))
 		case pool.ErrDropped:
-			d.l.Warning("old audio data overwritten", "full chunks", d.buf.Len())
+			badCount++
+			d.l.Warning("old audio data overwritten", "full chunks", d.buf.Len(), "throughput", fmt.Sprintf("%.2f", float64(goodCount)/float64(goodCount + badCount)))
 		default:
+			badCount++
 			d.l.Error("unexpected ringbuffer error", "error", err.Error())
 		}
 	}
@@ -428,8 +434,6 @@ func chunkingRead(d *ALSA, ch chan []byte) {
 	}
 }
 
-// chunkingSender takes a buffer, with a specified chunk size, recording period, and a channel
-// and sends chunks of audio to the channel after a period of each recording period.
 func chunkingSender(buf []byte, size int, ch chan []byte) {
 	for i := 0; i < len(buf); i += size {
 		ch <- buf[i:(i + size)]
