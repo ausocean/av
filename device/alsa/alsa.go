@@ -7,14 +7,13 @@ AUTHOR
   Trek Hopton <trek@ausocean.org>
 
 LICENSE
-  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved. 
+  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved.
 
   The Software and all intellectual property rights associated
   therewith, including but not limited to copyrights, trademarks,
   patents, and trade secrets, are and will remain the exclusive
   property of the Australian Ocean Lab (AusOcean).
 */
-
 
 // Package alsa provides access to input from ALSA audio devices.
 package alsa
@@ -43,6 +42,8 @@ const (
 	rbTimeout     = 100 * time.Millisecond
 	rbNextTimeout = 2000 * time.Millisecond
 	rbLen         = 200
+	pbSize        = 11520000         // 60 seconds of pcm data.
+	longRecLength = 10 * time.Second // Longer record period to minimise skips between recordings.
 )
 
 // "running" means the input goroutine is reading from the ALSA device and writing to the ringbuffer.
@@ -140,8 +141,8 @@ func (d *ALSA) Setup(c config.Config) error {
 		return fmt.Errorf("failed to open device: %w", err)
 	}
 
-	// Setup the device to record with desired period.
-	ab := d.dev.NewBufferDuration(time.Duration(d.RecPeriod * float64(time.Second)))
+	// Create a buffer for longer continuous recordings.
+	ab := d.dev.NewBufferDuration(longRecLength)
 	sf, err := pcm.SFFromString(ab.Format.SampleFormat.String())
 	if err != nil {
 		return fmt.Errorf("unable to get sample format from string: %w", err)
@@ -159,6 +160,7 @@ func (d *ALSA) Setup(c config.Config) error {
 	// Create pool buffer with appropriate chunk size.
 	cs := d.DataSize()
 	d.buf = pool.NewBuffer(rbLen, cs, rbTimeout)
+	pool.MaxAlloc(pbSize * 2)
 
 	// Start device in paused mode.
 	d.mode = paused
@@ -329,9 +331,14 @@ func (d *ALSA) open() error {
 	bytesPerSecond := rate * channels * (bitdepth / 8)
 	wantPeriodSize := int(float64(bytesPerSecond) * wantPeriod)
 	nearWantPeriodSize := nearestPowerOfTwo(wantPeriodSize)
+	periodSize, err := d.dev.NegotiatePeriodSize(nearWantPeriodSize)
+	if err != nil {
+		return err
+	}
+	d.l.Debug("alsa device period size set", "periodsize", periodSize)
 
-	// At least two period sizes should fit within the buffer.
-	bufSize, err := d.dev.NegotiateBufferSize(nearWantPeriodSize * 2)
+	// At least four period sizes should fit within the buffer.
+	bufSize, err := d.dev.NegotiateBufferSize(periodSize * 4)
 	if err != nil {
 		return err
 	}
@@ -348,6 +355,18 @@ func (d *ALSA) open() error {
 // input continously records audio and writes it to the ringbuffer.
 // Re-opens the device and tries again if the ASLA device returns an error.
 func (d *ALSA) input() {
+	// Make a channel to communicate between continuous recording and processing.
+	// The channel has a capacity of 5 minutes of audio, which it should never reach.
+	ch := make(chan []byte, int(5*60/d.RecPeriod))
+
+	// Read audio in longer sections (length of longRecPeriod).
+	go chunkingRead(d, ch)
+
+	goodCount := 0
+	badCount := 0
+
+	ticker := time.NewTicker(time.Duration(d.RecPeriod) * time.Second)
+
 	for {
 		// Check mode.
 		d.mu.Lock()
@@ -370,16 +389,12 @@ func (d *ALSA) input() {
 			return
 		}
 
-		// Read from audio device.
-		d.l.Debug("recording audio for period", "seconds", d.RecPeriod)
-		err := d.dev.Read(d.pb.Data)
-		if err != nil {
-			d.l.Debug("read failed", "error", err.Error())
-			err = d.open() // re-open
-			if err != nil {
-				d.l.Fatal("reopening device failed", "error", err.Error())
-				return
-			}
+		// Read audio chunk from channel.
+		<-ticker.C
+		timeout := time.NewTimer(time.Duration(d.RecPeriod) * time.Second)
+		select {
+		case d.pb.Data = <-ch:
+		case <-timeout.C:
 			continue
 		}
 
@@ -391,20 +406,58 @@ func (d *ALSA) input() {
 		n, err := d.buf.Write(toWrite.Data)
 		switch err {
 		case nil:
-			d.l.Debug("wrote audio to ringbuffer", "length", n)
+			goodCount++
+			d.l.Debug("wrote audio to ringbuffer", "length", n, "full chunks", d.buf.Len(), "throughput", fmt.Sprintf("%.2f", float64(goodCount)/float64(goodCount+badCount)))
 		case pool.ErrDropped:
-			d.l.Warning("old audio data overwritten")
+			badCount++
+			d.l.Warning("old audio data overwritten", "full chunks", d.buf.Len(), "throughput", fmt.Sprintf("%.2f", float64(goodCount)/float64(goodCount+badCount)))
 		default:
+			badCount++
 			d.l.Error("unexpected ringbuffer error", "error", err.Error())
 		}
 	}
+}
+
+// chunkingRead reads continuously from the ALSA buffer in long sections. The
+// audio is then chunked into the recording period set by d.RecPeriod and sent over
+// the channel.
+func chunkingRead(d *ALSA, ch chan []byte) {
+	d.l.Debug("Datasize of recperiod", "datasize", d.DataSize())
+	for {
+		buf := d.dev.NewBufferDuration(time.Minute)
+		// Read audio in 1 minute sections.
+		d.l.Debug("Reading audio", "recording length", longRecLength.String())
+		err := d.dev.Read(buf.Data)
+		if err != nil {
+			d.l.Debug("read failed", "error", err.Error())
+			err = d.open() // re-open
+			if err != nil {
+				d.l.Fatal("reopening device failed", "error", err.Error())
+				return
+			}
+			continue
+		}
+
+		// Chunk the audio into length of RecPeriod.
+		// We won't wait for this to finish executing because we want
+		// to start recording again ASAP.
+		go chunkingSender(buf.Data, d.DataSize(), ch, d.l)
+	}
+}
+
+func chunkingSender(buf []byte, size int, ch chan []byte, log logging.Logger) {
+	log.Debug("starting chunkingSender")
+	for i := 0; i < len(buf); i += size {
+		ch <- buf[i:(i + size)]
+	}
+	log.Debug("finish chunkingSender")
 }
 
 // Read reads from the ringbuffer, returning the number of bytes read upon success.
 func (d *ALSA) Read(p []byte) (int, error) {
 	// Ready ringbuffer for read.
 	d.l.Debug(pkg + "getting next chunk ready")
-	_, err := d.buf.Next(rbNextTimeout)
+	chunk, err := d.buf.Next(rbNextTimeout)
 	if err != nil {
 		switch err {
 		case io.EOF:
@@ -419,19 +472,15 @@ func (d *ALSA) Read(p []byte) (int, error) {
 		}
 	}
 
-	// Read from pool buffer.
-	d.l.Debug(pkg + "reading from buffer")
-	n, err := d.buf.Read(p)
+	n := copy(p, chunk.Bytes())
+	err = chunk.Close()
 	if err != nil {
-		switch err {
-		case io.EOF:
-			d.l.Debug(pkg + "EOF from Read")
-			return n, err
-		default:
-			d.l.Error(pkg+"unexpected error from Read", "error", err.Error())
-			return n, err
-		}
+		d.l.Debug("chunk close error:", "err", err)
+		return n, err
 	}
+
+	// Read from pool buffer.
+	d.l.Debug(pkg+"reading from buffer", "full chunks", d.buf.Len())
 	d.l.Debug(fmt.Sprintf("%v read %v bytes", pkg, n))
 	return n, nil
 }
