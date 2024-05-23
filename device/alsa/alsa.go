@@ -7,14 +7,13 @@ AUTHOR
   Trek Hopton <trek@ausocean.org>
 
 LICENSE
-  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved. 
+  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved.
 
   The Software and all intellectual property rights associated
   therewith, including but not limited to copyrights, trademarks,
   patents, and trade secrets, are and will remain the exclusive
   property of the Australian Ocean Lab (AusOcean).
 */
-
 
 // Package alsa provides access to input from ALSA audio devices.
 package alsa
@@ -140,8 +139,8 @@ func (d *ALSA) Setup(c config.Config) error {
 		return fmt.Errorf("failed to open device: %w", err)
 	}
 
-	// Setup the device to record with desired period.
-	ab := d.dev.NewBufferDuration(time.Duration(d.RecPeriod * float64(time.Second)))
+	// Create a buffer of 1 minute for continuous recordings.
+	ab := d.dev.NewBufferDuration(time.Minute)
 	sf, err := pcm.SFFromString(ab.Format.SampleFormat.String())
 	if err != nil {
 		return fmt.Errorf("unable to get sample format from string: %w", err)
@@ -329,9 +328,14 @@ func (d *ALSA) open() error {
 	bytesPerSecond := rate * channels * (bitdepth / 8)
 	wantPeriodSize := int(float64(bytesPerSecond) * wantPeriod)
 	nearWantPeriodSize := nearestPowerOfTwo(wantPeriodSize)
+	periodSize, err := d.dev.NegotiatePeriodSize(nearWantPeriodSize)
+	if err != nil {
+		return err
+	}
+	d.l.Debug("alsa device period size set", "periodsize", periodSize)
 
 	// At least two period sizes should fit within the buffer.
-	bufSize, err := d.dev.NegotiateBufferSize(nearWantPeriodSize * 2)
+	bufSize, err := d.dev.NegotiateBufferSize(periodSize * 4)
 	if err != nil {
 		return err
 	}
@@ -348,6 +352,13 @@ func (d *ALSA) open() error {
 // input continously records audio and writes it to the ringbuffer.
 // Re-opens the device and tries again if the ASLA device returns an error.
 func (d *ALSA) input() {
+	// Make a channel to communicate betwen continuous recording and processing.
+	// The channel has a capacity of 5 minutes of audio, which it should never reach.
+	ch := make(chan []byte, int(5*60/d.RecPeriod))
+
+	// Read audio in 1 minute sections.
+	go chunkingRead(d, ch)
+
 	for {
 		// Check mode.
 		d.mu.Lock()
@@ -370,9 +381,36 @@ func (d *ALSA) input() {
 			return
 		}
 
-		// Read from audio device.
-		d.l.Debug("recording audio for period", "seconds", d.RecPeriod)
-		err := d.dev.Read(d.pb.Data)
+		// Read audio chunk from channel.
+		d.pb.Data = <-ch
+
+		// Process audio.
+		d.l.Debug("processing audio")
+		toWrite := d.formatBuffer()
+
+		// Write audio to ringbuffer.
+		n, err := d.buf.Write(toWrite.Data)
+		switch err {
+		case nil:
+			d.l.Debug("wrote audio to ringbuffer", "length", n, "full chunks", d.buf.Len())
+		case pool.ErrDropped:
+			d.l.Warning("old audio data overwritten", "full chunks", d.buf.Len())
+		default:
+			d.l.Error("unexpected ringbuffer error", "error", err.Error())
+		}
+	}
+}
+
+// chunkingRead reads continuously from the ALSA buffer in 1 minute sections. The
+// audio is then chunked into the recording period set by d.RecPeriod and sent over
+// the channel.
+func chunkingRead(d *ALSA, ch chan []byte) {
+	d.l.Debug("Datasize of recperiod", "datasize", d.DataSize())
+	for {
+		buf := d.dev.NewBufferDuration(time.Minute)
+		// Read audio in 1 minute sections.
+		d.l.Debug("Reading audio for 1 minute")
+		err := d.dev.Read(buf.Data)
 		if err != nil {
 			d.l.Debug("read failed", "error", err.Error())
 			err = d.open() // re-open
@@ -383,20 +421,18 @@ func (d *ALSA) input() {
 			continue
 		}
 
-		// Process audio.
-		d.l.Debug("processing audio")
-		toWrite := d.formatBuffer()
+		// Chunk the audio into length of RecPeriod.
+		// We won't wait for this to finish executing because we want 
+		// to start recording again ASAP.
+		go chunkingSender(buf.Data, d.DataSize(), ch)
+	}
+}
 
-		// Write audio to ringbuffer.
-		n, err := d.buf.Write(toWrite.Data)
-		switch err {
-		case nil:
-			d.l.Debug("wrote audio to ringbuffer", "length", n)
-		case pool.ErrDropped:
-			d.l.Warning("old audio data overwritten")
-		default:
-			d.l.Error("unexpected ringbuffer error", "error", err.Error())
-		}
+// chunkingSender takes a buffer, with a specified chunk size, recording period, and a channel
+// and sends chunks of audio to the channel after a period of each recording period.
+func chunkingSender(buf []byte, size int, ch chan []byte) {
+	for i := 0; i < len(buf); i += size {
+		ch <- buf[i:(i + size)]
 	}
 }
 
@@ -420,7 +456,7 @@ func (d *ALSA) Read(p []byte) (int, error) {
 	}
 
 	// Read from pool buffer.
-	d.l.Debug(pkg + "reading from buffer")
+	d.l.Debug(pkg + "reading from buffer", "full chunks", d.buf.Len())
 	n, err := d.buf.Read(p)
 	if err != nil {
 		switch err {

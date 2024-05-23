@@ -13,14 +13,13 @@ AUTHORS
   Russell Stanley <russell@ausocean.org>
 
 LICENSE
-  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved. 
+  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved.
 
   The Software and all intellectual property rights associated
   therewith, including but not limited to copyrights, trademarks,
   patents, and trade secrets, are and will remain the exclusive
   property of the Australian Ocean Lab (AusOcean).
 */
-
 
 // Package rv is a netsender client for revid.
 package main
@@ -61,7 +60,7 @@ const (
 	logMaxBackup = 10
 	logMaxAge    = 28 // days
 	logVerbosity = logging.Info
-	logSuppress  = true
+	logSuppress  = false
 )
 
 // Revid modes.
