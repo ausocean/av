@@ -52,7 +52,7 @@ const (
 	logMaxSize   = 500 // MB
 	logMaxBackup = 10
 	logMaxAge    = 28 // days
-	logVerbosity = logging.Debug
+	logVerbosity = logging.Info
 	logSuppress  = true
 )
 
@@ -89,6 +89,8 @@ const (
 	modeMute   = "Mute"
 )
 
+const audioCmd = "aplay"
+
 // fileMu is used to ensure safe reading and writing of shared files.
 var fileMu sync.Mutex
 
@@ -103,8 +105,6 @@ var varMap = map[string]string{
 // onlinePrefixes stores the valid prefixes that are assumed to be online sources of data. Sources
 // with these prefixes will be accessed using a GET request, all other URIs will be assumed to be local.
 var onlinePrefixes = []string{"http://", "https://"}
-
-const audioCmd = "aplay"
 
 func initCommand(l logging.Logger) { checkPath(audioCmd, l) }
 
@@ -323,7 +323,7 @@ func setVolume(hexVol string, bus embd.I2CBus) error {
 	}
 
 	// Cache the volume.
-	updateConf(cfgVolume, hexVol)
+	updateConf(func(c *cfgCache) { c.Volume = hexVol })
 	return nil
 }
 
@@ -376,12 +376,10 @@ func playAudio(file *string, l logging.Logger) {
 
 		// Wait for playback to complete.
 		err = cmd.Wait()
-
-		// Release the lock.
-		fileMu.Unlock()
 		if err != nil {
 			l.Error("failed to wait for execution finish", "error", err)
 		}
+		fileMu.Unlock()
 		l.Debug("stdout received", "stdout", string(outBuff.Bytes()))
 
 		// If there was any errors on stderr, log them.
@@ -432,120 +430,118 @@ func getAudio(uri string, playPath *string, l logging.Logger) error {
 	const cachePath = "/home/pi/"
 
 	// Update the target audio file from the specified source (URI).
-	if isOnlineResource(uri) {
-		// Check if the uri has been downloaded already.
-		urlPath := cachePath + strings.Split(uri, "://")[1]
-		_, err := os.Stat(urlPath)
-		if err == nil {
-			l.Debug("resource cached, changing play path")
-			err = setAudioPath(urlPath)
-			if err != nil {
-				return err
-			}
-			fileMu.Lock()
-			*playPath = urlPath
-			fileMu.Unlock()
-			return nil
-		} else if !errors.Is(err, fs.ErrNotExist) {
-			l.Debug("File found, or other error", "err", err)
-			return err
-		}
-		l.Debug("File not found, getting resource from URI", "URI", uri)
-
-		resp, err := http.Get(uri)
+	if !isOnlineResource(uri) {
+		// If we are here, the URI points to a file so we can just change
+		// the filePath.
+		fileMu.Lock()
+		*playPath = uri
+		err := setAudioPath(*playPath)
 		if err != nil {
-			l.Error("could not get uri", "error", err)
+			l.Error("Failed to set audio path", "error", err)
+			fileMu.Unlock()
 			return err
 		}
-		l.Debug("got resource from URI")
-
-		// Determine the file type. (MIME should be type/subtype).
-		// for the speaker, the type should be audio.
-		mime := strings.Split(resp.Header.Get("Content-Type"), "/")
-		if mime[0] != "audio" {
-			l.Debug("unsupported MIME type", "MIME", mime[0])
-			return errUnsupportedType
-		}
-		l.Debug("correct MIME major type")
-
-		switch mime[1] {
-		case "wav", "x-wav", "wave", "pcm", "adpcm", "raw":
-			l.Debug("correct MIME subtype")
-
-			// Ensure that the parent folders exist.
-			err = os.MkdirAll(filepath.Dir(urlPath), fs.FileMode(os.O_CREATE))
-			if err != nil {
-				l.Error("unable to make directories", "DIR", filepath.Dir(urlPath), "err", err)
-				return err
-			}
-			l.Debug("made directory for file")
-			file, err := os.OpenFile(urlPath, os.O_WRONLY|os.O_CREATE, fs.FileMode(os.O_CREATE))
-			defer file.Close()
-			if err != nil {
-				l.Error("unable to open file", "file", urlPath, "err", err)
-				return err
-			}
-			l.Debug("opened file for downloading audio")
-
-			// Copy the response body into the file.
-			_, err = io.Copy(file, resp.Body)
-			if err != nil {
-				l.Error("unable to copy response body")
-				return err
-			}
-			l.Debug("downloaded file, getting lock")
-
-			// Update the filePath to reflect new path.
-			fileMu.Lock()
-			l.Debug("got lock on file reading writing")
-			*playPath = cachePath + urlPath
-			err = setAudioPath(*playPath)
-			if err != nil {
-				l.Error("Failed to set audio path", "error", err)
-				fileMu.Unlock()
-				return err
-			}
-			fileMu.Unlock()
-			l.Debug("New file path saved to file")
-			return nil
-		default:
-			l.Debug("unsupported MIME subtype", "MIME", mime[1])
-			return errUnsupportedType
-		}
-	}
-
-	// If we are here, the URI points to a file so we can just change
-	// the filePath.
-	fileMu.Lock()
-	*playPath = uri
-	err := setAudioPath(*playPath)
-	if err != nil {
-		l.Error("Failed to set audio path", "error", err)
 		fileMu.Unlock()
-		return err
-	}
-	fileMu.Unlock()
 
-	return nil
+		return nil
+	}
+
+	// Check if the uri has been downloaded already.
+	urlPath := cachePath + strings.Split(uri, "://")[1]
+	_, err := os.Stat(urlPath)
+	if err == nil {
+		l.Debug("resource cached, changing play path")
+		err = setAudioPath(urlPath)
+		if err != nil {
+			return err
+		}
+		fileMu.Lock()
+		defer fileMu.Unlock()
+		*playPath = urlPath
+		return nil
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		l.Debug("File found, or other error", "err", err)
+		return fmt.Errorf("File found, or other error %w", err)
+	}
+	l.Debug("File not found, getting resource from URI", "URI", uri)
+
+	resp, err := http.Get(uri)
+	if err != nil {
+		l.Error("could not get uri", "error", err)
+		return fmt.Errorf("could not get uri: %w", err)
+	}
+	l.Debug("got resource from URI")
+
+	// Determine the file type. (MIME should be type/subtype).
+	// for the speaker, the type should be audio.
+	mime := strings.Split(resp.Header.Get("Content-Type"), "/")
+	if mime[0] != "audio" {
+		l.Debug(errUnsupportedType.Error(), "MIME", mime[0])
+		return errUnsupportedType
+	}
+	l.Debug("correct MIME major type")
+
+	switch mime[1] {
+	case "wav", "x-wav", "wave", "pcm", "adpcm", "raw":
+		l.Debug("correct MIME subtype")
+
+		// Ensure that the parent folders exist.
+		err = os.MkdirAll(filepath.Dir(urlPath), fs.FileMode(os.O_CREATE))
+		if err != nil {
+			l.Error("unable to make directories", "DIR", filepath.Dir(urlPath), "err", err)
+			return fmt.Errorf("unable to make directories: %w", err)
+		}
+		l.Debug("made directory for file")
+		file, err := os.OpenFile(urlPath, os.O_WRONLY|os.O_CREATE, fs.FileMode(os.O_CREATE))
+		defer file.Close()
+		if err != nil {
+			l.Error("unable to open file", "file", urlPath, "err", err)
+			return fmt.Errorf("unable to open file: %w", err)
+		}
+		l.Debug("opened file for downloading audio")
+
+		// Copy the response body into the file.
+		_, err = io.Copy(file, resp.Body)
+		if err != nil {
+			l.Error("unable to copy response body")
+			return fmt.Errorf("unable to copy response body: %w", err)
+		}
+		l.Debug("downloaded file, getting lock")
+
+		// Update the filePath to reflect new path.
+		fileMu.Lock()
+		defer fileMu.Unlock()
+		l.Debug("got lock on file reading writing")
+		*playPath = cachePath + urlPath
+		err = setAudioPath(*playPath)
+		if err != nil {
+			l.Error("failed to set audio path", "error", err)
+			return fmt.Errorf("failed to set audio path: %w", err)
+		}
+		l.Debug("New file path saved to file")
+		return nil
+	default:
+		l.Debug("unsupported MIME subtype", "MIME", mime[1])
+		return errUnsupportedType
+	}
 }
 
 // setAudioPath takes the path of the currently playing audio file and saves
-// it to /etc/netsender/treatment.conf. This location is used on boot as the
-// default path to play from until new vars are recieved.
+// it to /etc/netsender/speaker.conf. This location is used on boot as the
+// default path to play from until new vars are received.
 func setAudioPath(path string) error {
-	return updateConf(cfgPath, path)
+	return updateConf(func(c *cfgCache) { c.Path = path })
 }
 
-// getConf returns the contents (path to audio file) of /etc/netsender/treatment.json.
+// getConf returns the contents (path to audio file) of /etc/netsender/speaker.json.
 // If the file is empty, or cannot be read, the function will return the default audio path.
 func getConf() (*cfgCache, error) {
-
 	// Open the file.
 	file, err := os.Open(confPath)
+	defer file.Close()
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
-	defer file.Close()
 
 	data, err := io.ReadAll(file)
 	if err != nil {
@@ -562,23 +558,15 @@ func getConf() (*cfgCache, error) {
 	return &cfg, nil
 }
 
-// updateConf takes a key value pair and updates the cached vars for the device stored at
-// /etc/netsender/treatment.json
-func updateConf(key string, value string) error {
-
+// updateConf updates the cached vars for the device stored at /etc/netsender/speaker.json
+// It applies the given function to modify the config.
+func updateConf(u func(c *cfgCache)) error {
 	cfg, err := getConf()
 	if err != nil {
 		return fmt.Errorf("unable to get config: %w", err)
 	}
 
-	switch key {
-	case cfgPath:
-		cfg.Path = value
-	case cfgVolume:
-		cfg.Volume = value
-	default:
-		return errors.New("invalid key for config")
-	}
+	u(cfg)
 
 	// Marshall JSON.
 	data, err := json.Marshal(cfg)
