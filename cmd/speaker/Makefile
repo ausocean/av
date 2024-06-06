@@ -8,7 +8,7 @@ USER := $(shell whoami)
 PATH := /usr/local/go/bin:$(PATH)
 BIN_NAME := speaker
 BIN_DIR := /src/github.com/ausocean/av/cmd/$(BIN_NAME)
-SPEAKER_CONF := '{"Path": "/home/pi/audio.wav", "Volume": "63"}'
+SPEAKER_CONF := '{"Path": "/home/pi/audio.wav", "Volume": "100"}'
 
 .SILENT:make_dirs
 .SILENT:hard_copy_files

@@ -62,7 +62,7 @@ const (
 	defaultSleepTime = 60 // Seconds
 	pkg              = "rv: "
 	minAmpVolume     = 0
-	maxAmpVolume     = 63
+	maxAmpVolume     = 100
 	volAddr          = 0x4B
 	i2cPort          = 1
 	confPath         = "/etc/speaker.json"
@@ -74,12 +74,6 @@ type cfgCache struct {
 	Path   string // Stores the path to the audio file to be played.
 	Volume string // Stores the volume of the amplifier.
 }
-
-// valid keys to be found in the config.
-const (
-	cfgPath   = "path"
-	cfgVolume = "volume"
-)
 
 // Channel modes.
 const (
@@ -309,21 +303,25 @@ func setChannels(mode string, l logging.Logger) error {
 }
 
 // setVolume sends i2c commands to the amplifier in order to set the volume of the amplifier.
-func setVolume(hexVol string, bus embd.I2CBus) error {
-	vol, err := strconv.ParseInt(hexVol, 10, 8)
+func setVolume(vol string, bus embd.I2CBus) error {
+	v, err := strconv.ParseInt(vol, 10, 8)
 	if err != nil {
 		return fmt.Errorf("could not parse hex volume: %w", err)
 	}
-	if vol < minAmpVolume || vol > maxAmpVolume {
-		return fmt.Errorf("volume %d, out of range: [%d, %d]", vol, minAmpVolume, maxAmpVolume)
+	if v < minAmpVolume || v > maxAmpVolume {
+		return fmt.Errorf("volume %d, out of range: [%d, %d]", v, minAmpVolume, maxAmpVolume)
 	}
-	err = bus.WriteByte(volAddr, byte(vol))
+	// The user can set 0 to 100, which is intuitive, but the Amp can only do 0 - 99.
+	if v == maxAmpVolume {
+		v = maxAmpVolume - 1
+	}
+	err = bus.WriteByte(volAddr, byte(v))
 	if err != nil {
 		return fmt.Errorf("unable to write volume to amplifier: %w", err)
 	}
 
 	// Cache the volume.
-	updateConf(func(c *cfgCache) { c.Volume = hexVol })
+	updateConf(func(c *cfgCache) { c.Volume = vol })
 	return nil
 }
 
@@ -434,15 +432,13 @@ func getAudio(uri string, playPath *string, l logging.Logger) error {
 		// If we are here, the URI points to a file so we can just change
 		// the filePath.
 		fileMu.Lock()
+		defer fileMu.Unlock()
 		*playPath = uri
 		err := setAudioPath(*playPath)
 		if err != nil {
 			l.Error("Failed to set audio path", "error", err)
-			fileMu.Unlock()
-			return err
+			return fmt.Errorf("Failed to set audio path %w", err)
 		}
-		fileMu.Unlock()
-
 		return nil
 	}
 
