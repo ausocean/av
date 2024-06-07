@@ -42,6 +42,7 @@ import (
 	"github.com/ausocean/client/pi/netlogger"
 	"github.com/ausocean/client/pi/netsender"
 	"github.com/ausocean/utils/logging"
+	"github.com/ausocean/utils/sliceutils"
 	"github.com/kidoman/embd"
 	_ "github.com/kidoman/embd/host/rpi"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
@@ -421,12 +422,8 @@ func checkPath(cmd string, l logging.Logger) {
 // whether a uri is an online or local resource, and returns true for a
 // matching prefix, and returns false for no match.
 func isOnlineResource(uri string) bool {
-	for _, prefix := range onlinePrefixes {
-		if strings.HasPrefix(uri, prefix) {
-			return true
-		}
-	}
-	return false
+	match, _ := sliceutils.ContainsStringPrefix(onlinePrefixes, uri)
+	return match
 }
 
 // getAudio determines the source of the file (local or online),
