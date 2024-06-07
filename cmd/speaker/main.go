@@ -30,6 +30,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -88,7 +89,13 @@ const audioCmd = "aplay"
 // fileMu is used to ensure safe reading and writing of shared files.
 var fileMu sync.Mutex
 
-var errUnsupportedType = errors.New("MIME type not supported")
+type errUnsupportedType struct {
+	mime string
+}
+
+func (e *errUnsupportedType) Error() string {
+	return fmt.Sprintf("unsupported MIME type: %s", e.mime)
+}
 
 // Variable map to send to the cloud.
 var varMap = map[string]string{
@@ -436,8 +443,7 @@ func getAudio(uri string, playPath *string, l logging.Logger) error {
 		*playPath = uri
 		err := setAudioPath(*playPath)
 		if err != nil {
-			l.Error("Failed to set audio path", "error", err)
-			return fmt.Errorf("Failed to set audio path %w", err)
+			return fmt.Errorf("failed to set audio path %w", err)
 		}
 		return nil
 	}
@@ -449,21 +455,19 @@ func getAudio(uri string, playPath *string, l logging.Logger) error {
 		l.Debug("resource cached, changing play path")
 		err = setAudioPath(urlPath)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to set audio path: %w", err)
 		}
 		fileMu.Lock()
 		defer fileMu.Unlock()
 		*playPath = urlPath
 		return nil
 	} else if !errors.Is(err, fs.ErrNotExist) {
-		l.Debug("File found, or other error", "err", err)
-		return fmt.Errorf("File found, or other error %w", err)
+		return fmt.Errorf("file found, or other error %w", err)
 	}
 	l.Debug("File not found, getting resource from URI", "URI", uri)
 
 	resp, err := http.Get(uri)
 	if err != nil {
-		l.Error("could not get uri", "error", err)
 		return fmt.Errorf("could not get uri: %w", err)
 	}
 	l.Debug("got resource from URI")
@@ -472,54 +476,46 @@ func getAudio(uri string, playPath *string, l logging.Logger) error {
 	// for the speaker, the type should be audio.
 	mime := strings.Split(resp.Header.Get("Content-Type"), "/")
 	if mime[0] != "audio" {
-		l.Debug(errUnsupportedType.Error(), "MIME", mime[0])
-		return errUnsupportedType
+		return &errUnsupportedType{mime: mime[0]}
 	}
 	l.Debug("correct MIME major type")
 
-	switch mime[1] {
-	case "wav", "x-wav", "wave", "pcm", "adpcm", "raw":
-		l.Debug("correct MIME subtype")
-
-		// Ensure that the parent folders exist.
-		err = os.MkdirAll(filepath.Dir(urlPath), fs.FileMode(os.O_CREATE))
-		if err != nil {
-			l.Error("unable to make directories", "DIR", filepath.Dir(urlPath), "err", err)
-			return fmt.Errorf("unable to make directories: %w", err)
-		}
-		l.Debug("made directory for file")
-		file, err := os.OpenFile(urlPath, os.O_WRONLY|os.O_CREATE, fs.FileMode(os.O_CREATE))
-		defer file.Close()
-		if err != nil {
-			l.Error("unable to open file", "file", urlPath, "err", err)
-			return fmt.Errorf("unable to open file: %w", err)
-		}
-		l.Debug("opened file for downloading audio")
-
-		// Copy the response body into the file.
-		_, err = io.Copy(file, resp.Body)
-		if err != nil {
-			l.Error("unable to copy response body")
-			return fmt.Errorf("unable to copy response body: %w", err)
-		}
-		l.Debug("downloaded file, getting lock")
-
-		// Update the filePath to reflect new path.
-		fileMu.Lock()
-		defer fileMu.Unlock()
-		l.Debug("got lock on file reading writing")
-		*playPath = cachePath + urlPath
-		err = setAudioPath(*playPath)
-		if err != nil {
-			l.Error("failed to set audio path", "error", err)
-			return fmt.Errorf("failed to set audio path: %w", err)
-		}
-		l.Debug("New file path saved to file")
-		return nil
-	default:
-		l.Debug("unsupported MIME subtype", "MIME", mime[1])
-		return errUnsupportedType
+	if !slices.Contains([]string{"wav", "x-wav", "wave", "pcm", "adpcm", "raw"}, mime[1]) {
+		return &errUnsupportedType{mime: mime[1]}
 	}
+	l.Debug("correct MIME subtype")
+
+	// Ensure that the parent folders exist.
+	err = os.MkdirAll(filepath.Dir(urlPath), fs.FileMode(os.O_CREATE))
+	if err != nil {
+		return fmt.Errorf("unable to make directories %v: %w", filepath.Dir(urlPath), err)
+	}
+	l.Debug("made directory for file")
+	file, err := os.OpenFile(urlPath, os.O_WRONLY|os.O_CREATE, fs.FileMode(os.O_CREATE))
+	defer file.Close()
+	if err != nil {
+		return fmt.Errorf("unable to open file: %v: %w", urlPath, err)
+	}
+	l.Debug("opened file for downloading audio")
+
+	// Copy the response body into the file.
+	_, err = io.Copy(file, resp.Body)
+	if err != nil {
+		return fmt.Errorf("unable to copy response body: %w", err)
+	}
+	l.Debug("downloaded file, getting lock")
+
+	// Update the filePath to reflect new path.
+	fileMu.Lock()
+	defer fileMu.Unlock()
+	l.Debug("got lock on file reading writing")
+	*playPath = cachePath + urlPath
+	err = setAudioPath(*playPath)
+	if err != nil {
+		return fmt.Errorf("failed to set audio path: %w", err)
+	}
+	l.Debug("New file path saved to file")
+	return nil
 }
 
 // setAudioPath takes the path of the currently playing audio file and saves
