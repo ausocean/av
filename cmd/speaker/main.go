@@ -467,6 +467,7 @@ func getAudio(uri string, playPath *string, l logging.Logger) error {
 	if err != nil {
 		return fmt.Errorf("could not get uri: %w", err)
 	}
+	defer resp.Body.Close()
 	l.Debug("got resource from URI")
 
 	// Determine the file type. (MIME should be type/subtype).
@@ -482,31 +483,38 @@ func getAudio(uri string, playPath *string, l logging.Logger) error {
 	}
 	l.Debug("correct MIME subtype")
 
+	// Create temp file to store audio.
+	tempFile, err := os.CreateTemp("", "audio_*")
+	if err != nil {
+		return fmt.Errorf("unable to create temporary file: %w", err)
+	}
+	defer tempFile.Close()
+	defer os.Remove(tempFile.Name())
+
+	// Copy the response body into the temporary file.
+	_, err = io.Copy(tempFile, resp.Body)
+	if err != nil {
+		return fmt.Errorf("unable to copy response body: %w", err)
+	}
+	l.Debug("downloaded file to temporary location")
+
 	// Ensure that the parent folders exist.
 	err = os.MkdirAll(filepath.Dir(urlPath), fs.FileMode(os.O_CREATE))
 	if err != nil {
 		return fmt.Errorf("unable to make directories %v: %w", filepath.Dir(urlPath), err)
 	}
-	l.Debug("made directory for file")
-	file, err := os.OpenFile(urlPath, os.O_WRONLY|os.O_CREATE, fs.FileMode(os.O_CREATE))
-	defer file.Close()
-	if err != nil {
-		return fmt.Errorf("unable to open file: %v: %w", urlPath, err)
-	}
-	l.Debug("opened file for downloading audio")
+	l.Debug("made directory for final file")
 
-	// Copy the response body into the file.
-	_, err = io.Copy(file, resp.Body)
-	if err != nil {
-		return fmt.Errorf("unable to copy response body: %w", err)
-	}
-	l.Debug("downloaded file, getting lock")
-
-	// Update the filePath to reflect new path.
+	// Acquire the mutex and rename the temporary file to the final destination.
 	fileMu.Lock()
 	defer fileMu.Unlock()
-	l.Debug("got lock on file reading writing")
-	*playPath = cachePath + urlPath
+
+	err = os.Rename(tempFile.Name(), urlPath)
+	if err != nil {
+		return fmt.Errorf("unable to rename temporary file: %w", err)
+	}
+
+	*playPath = urlPath
 	err = setAudioPath(*playPath)
 	if err != nil {
 		return fmt.Errorf("failed to set audio path: %w", err)
