@@ -8,25 +8,32 @@ USER := $(shell whoami)
 PATH := /usr/local/go/bin:$(PATH)
 BIN_NAME := speaker
 BIN_DIR := /src/github.com/ausocean/av/cmd/$(BIN_NAME)
+SPEAKER_CONF := '{"Path": "/home/pi/audio.wav", "Volume": "100"}'
 
 .SILENT:make_dirs
 .SILENT:hard_copy_files
 .SILENT:set_mac
 .SILENT:clean
 
-install: as_root make_dirs hard_copy_files rebuild syncreboot
+install: as_root make_dirs hard_copy_files set_conf_treat rebuild syncreboot
 	@echo "Install complete"
 
-install_no_rebuild: as_root make_dirs hard_copy_files syncreboot
+install_no_rebuild: as_root make_dirs hard_copy_files set_conf_treat syncreboot
 	@echo "Install complete"
 
-install_set_mac: as_root make_dirs hard_copy_files set_mac rebuild syncreboot
+install_set_mac: as_root make_dirs hard_copy_files set_conf_treat set_mac rebuild syncreboot
 	@echo "Install complete, MAC address set to $(MA)"
 
 as_root:
 ifneq ($(USER),root)
 	$(error Must run as superuser!)
 endif
+
+set_conf_treat:
+	if [ -f /etc/speaker.json ] ; then \
+		echo "/etc/speaker.json overwritten" ; \
+	fi
+	printf $(SPEAKER_CONF) > /etc/speaker.json
 
 rebuild:
 	@chmod +x speaker_run.sh
