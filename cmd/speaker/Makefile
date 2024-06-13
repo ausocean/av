@@ -91,7 +91,7 @@ endif
 
 syncreboot:
 	@if [ -e ../../../utils ]; then \
-		cd ../../../utils; git checkout -f master; git pull; \
+		cd ../../../utils; git checkout -f main; git pull; \
 	else \
 		cd ../../../; git clone https://github.com/ausocean/utils; \
 	fi
