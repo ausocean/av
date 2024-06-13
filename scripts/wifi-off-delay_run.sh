@@ -4,5 +4,5 @@
 # If a user doesn't want the wifi to turn off, the service that controls this script can be 
 # disabled before the delay by running: "sudo service wifi-off-delay stop".
 
-sleep 1200
+sleep 180
 sudo ifconfig wlan0 down
