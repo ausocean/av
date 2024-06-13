@@ -15,6 +15,7 @@ USER := $(shell whoami)
 PATH := /usr/local/go/bin:$(PATH)
 BIN_NAME := speaker
 BIN_DIR := /src/github.com/ausocean/av/cmd/$(BIN_NAME)
+SPEAKER_CONF := '{"Path": "/home/pi/audio.wav", "Volume": "100"}'
 
 
 .SILENT:clean
@@ -39,6 +40,12 @@ as_root:
 ifneq ($(USER),root)
 	$(error Must run as superuser!)
 endif
+
+set_conf_treat:
+	if [ -f /etc/speaker.json ] ; then \
+		echo "/etc/speaker.json overwritten" ; \
+	fi
+	printf $(SPEAKER_CONF) > /etc/speaker.json
 
 rebuild:
 	@chmod +x speaker_run.sh
