@@ -15,12 +15,12 @@ USER := $(shell whoami)
 PATH := /usr/local/go/bin:$(PATH)
 BIN_NAME := speaker
 BIN_DIR := /src/github.com/ausocean/av/cmd/$(BIN_NAME)
-SPEAKER_CONF := '{"Path": "/home/pi/audio.wav", "Volume": "100"}'
+SPEAKER_CONF := '{"Path": "/home/pi/configure_SCU.wav", "Volume": "100"}'
 
 
 .SILENT:clean
 
-install: as_root make_dirs write_service
+install: as_root make_dirs write_services set_conf_speaker
 ifeq ($(BUILD),true)
 	$(MAKE) rebuild
 	echo "binary built"
@@ -41,7 +41,7 @@ ifneq ($(USER),root)
 	$(error Must run as superuser!)
 endif
 
-set_conf_treat:
+set_conf_speaker:
 	if [ -f /etc/speaker.json ] ; then \
 		echo "/etc/speaker.json overwritten" ; \
 	fi
@@ -61,12 +61,17 @@ make_dirs:
 		chmod guo+rwx /var/log/netsender; \
 	fi
 
-write_service:
+write_services:
 	@if [ -f /etc/systemd/system/$(BIN_NAME).service ] ; then \
 		echo "/etc/systemd/system/$(BIN_NAME).service overwritten" ; \
 	fi
 	@cp -f $(BIN_NAME).service /etc/systemd/system
 	@systemctl enable $(BIN_NAME).service
+	@if [ -f /etc/systemd/system/wifi-off-delay.service ] ; then \
+		echo "/etc/systemd/system/wifi-off-delay.service overwritten" ; \
+	fi
+	@cp -f ../../scripts/wifi-off-delay.service /etc/systemd/system
+	@systemctl enable wifi-off-delay.service
 
 write_conf:
 ifeq ($(MA),)
