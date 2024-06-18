@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"io/fs"
@@ -47,6 +48,9 @@ import (
 	_ "github.com/kidoman/embd/host/rpi"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
+
+// Current software version.
+const version = "v1.0.0"
 
 // Logging configuration.
 const (
@@ -111,6 +115,12 @@ var onlinePrefixes = []string{"http://", "https://"}
 func initCommand(l logging.Logger) { checkPath(audioCmd, l) }
 
 func main() {
+	showVersion := flag.Bool("version", false, "show version")
+	flag.Parse()
+	if *showVersion {
+		fmt.Println(version)
+		os.Exit(0)
+	}
 
 	// Create lumberjack logger to handle logging to file.
 	fileLog := &lumberjack.Logger{
