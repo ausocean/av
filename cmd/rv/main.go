@@ -13,7 +13,7 @@ AUTHORS
   Russell Stanley <russell@ausocean.org>
 
 LICENSE
-  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved. 
+  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved.
 
   The Software and all intellectual property rights associated
   therewith, including but not limited to copyrights, trademarks,
@@ -21,11 +21,11 @@ LICENSE
   property of the Australian Ocean Lab (AusOcean).
 */
 
-
 // Package rv is a netsender client for revid.
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -66,11 +66,11 @@ const (
 
 // Revid modes.
 const (
-	modeNormal    = "Normal"
-	modePaused    = "Paused"
-	modeBurst     = "Burst"
-	modeLoop      = "Loop"
-	modeShutdown  = "Shutdown"
+	modeNormal   = "Normal"
+	modePaused   = "Paused"
+	modeBurst    = "Burst"
+	modeLoop     = "Loop"
+	modeShutdown = "Shutdown"
 )
 
 // Misc constants.
@@ -94,6 +94,13 @@ const (
 var canProfile = false
 
 func main() {
+	showVersion := flag.Bool("version", false, "show version")
+	flag.Parse()
+	if *showVersion {
+		fmt.Println(version)
+		os.Exit(0)
+	}
+
 	mts.Meta = meta.NewWith([][2]string{{metaPreambleKey, metaPreambleData}})
 
 	// Create lumberjack logger to handle logging to file.
