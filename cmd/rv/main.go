@@ -46,7 +46,7 @@ import (
 )
 
 // Current software version.
-const version = "v1.5.0"
+const version = "v1.6.0"
 
 // Copyright information prefixed to all metadata.
 const (
@@ -66,11 +66,12 @@ const (
 
 // Revid modes.
 const (
-	modeNormal   = "Normal"
-	modePaused   = "Paused"
-	modeBurst    = "Burst"
-	modeLoop     = "Loop"
-	modeShutdown = "Shutdown"
+	modeNormal    = "Normal"
+	modePaused    = "Paused"
+	modeBurst     = "Burst"
+	modeLoop      = "Loop"
+	modeShutdown  = "Shutdown"
+	modeCompleted = "Completed"
 )
 
 // Misc constants.
@@ -144,7 +145,6 @@ func main() {
 		readPin(p, rv, log),
 		nil,
 		netsender.WithVarTypes(createVarMap()),
-		netsender.WithUpgrader(upgrade),
 	)
 	if err != nil {
 		log.Fatal(pkg + "could not initialise netsender client: " + err.Error())
@@ -226,15 +226,15 @@ func run(rv *revid.Revid, ns *netsender.Sender, l logging.Logger, nl *netlogger.
 
 		l.Debug("checking mode")
 		switch ns.Mode() {
-		case modePaused:
-			l.Debug("mode is Paused, stopping revid")
+		case modePaused, modeCompleted:
+			l.Debug("mode is Paused or Completed, stopping revid")
 			rv.Stop()
 		case modeNormal, modeLoop:
 			l.Debug("mode is Normal or Loop, starting revid")
 			err = rv.Start()
 			if err != nil {
 				l.Error(pkg+"could not start revid", "error", err.Error())
-				ns.SetMode(modePaused, &vs)
+				ns.SetMode(modePaused)
 				sleep(ns, l)
 				continue
 			}
@@ -243,15 +243,15 @@ func run(rv *revid.Revid, ns *netsender.Sender, l logging.Logger, nl *netlogger.
 			err = rv.Burst()
 			if err != nil {
 				l.Warning(pkg+"could not start burst", "error", err.Error())
-				ns.SetMode(modePaused, &vs)
+				ns.SetMode(modePaused)
 				sleep(ns, l)
 				continue
 			}
-			ns.SetMode(modePaused, &vs)
+			ns.SetMode(modePaused)
 		case modeShutdown:
 			l.Debug("mode is Shutdown, shutting down")
 			rv.Stop()
-			ns.SetMode(modePaused, &vs)
+			ns.SetMode(modePaused)
 			out, err := exec.Command(rebootCmd, "-s=true").CombinedOutput()
 			if err != nil {
 				l.Warning("could not use syncreboot to shutdown, out: %s, err: %w", string(out), err)
@@ -321,29 +321,4 @@ func readPin(p *turbidityProbe, rv *revid.Revid, l logging.Logger) func(pin *net
 		}
 		return nil
 	}
-}
-
-// upgrade is a callback to be provided to the netsender client initialiser through the
-// netsender.WithUpgrader() option function. This function is called if the
-// netsender client gets a remote upgrade request. The tag is used in this case
-// to fetch, checkout and then build.
-func upgrade(tag, user, gopath string) error {
-	srcDir := gopath + "/src/github.com/ausocean/av"
-	instrs := []struct {
-		Cmd, Dir string
-		Args     []string
-	}{
-		{Cmd: "git", Dir: srcDir, Args: []string{"fetch", "--depth=1", "origin", "refs/tags/" + tag + ":refs/tags/" + tag}},
-		{Cmd: "git", Dir: srcDir, Args: []string{"checkout", "--force", "tags/" + tag}},
-		{Cmd: "make", Dir: srcDir + "/init", Args: []string{"rebuild"}},
-	}
-	for _, instr := range instrs {
-		cmd := exec.Command(instr.Cmd, instr.Args...)
-		cmd.Dir = instr.Dir
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("could not perform upgrade instruction: %w (%+v), out: %s", err, instr, string(out))
-		}
-	}
-	return nil
 }

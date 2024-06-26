@@ -13,8 +13,8 @@ github.com/ajstarks/svgo v0.0.0-20211024235047-1546f124cd8b h1:slYM766cy2nI3BwyR
 github.com/ajstarks/svgo v0.0.0-20211024235047-1546f124cd8b/go.mod h1:1KcenG0jGWcpt8ov532z81sp/kMMUG485J2InIOyADM=
 github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883 h1:bvNMNQO63//z+xNgfBlViaCIJKLlCJ6/fmUseuG0wVQ=
 github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883/go.mod h1:rCTlJbsFo29Kk6CurOXKm700vrz8f0KW0JNfpkRJY/8=
-github.com/ausocean/client v1.0.0 h1:06N+q9PO+VPhPsgMkdzGVesJENjMAg9VrVW58X2vI9k=
-github.com/ausocean/client v1.0.0/go.mod h1:RFSO3/qlFJp8w8rfBaUg0j3k62D5mZYgcEWqYriB0RY=
+github.com/ausocean/client v1.1.0 h1:R3OhPz3d+ZUQUg5eBhw3o3pMxoCcvDQ0R2ONcB/FRVE=
+github.com/ausocean/client v1.1.0/go.mod h1:RFSO3/qlFJp8w8rfBaUg0j3k62D5mZYgcEWqYriB0RY=
 github.com/ausocean/utils v0.0.0-20240516071050-fe6d74a8ac16 h1:t9ulqrcN08K45QHMEpQAGMIV/dE3nx2jRrCWzpdeRiU=
 github.com/ausocean/utils v0.0.0-20240516071050-fe6d74a8ac16/go.mod h1:rhfT+xT9CBFN6DWwJxzn+mr1yOXd7ZbaLmzRwJcmm7Y=
 github.com/campoy/embedmd v1.0.0 h1:V4kI2qTJJLf4J29RzI/MAt2c3Bl4dQSYPuflzwFH2hY=
