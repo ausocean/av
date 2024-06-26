@@ -227,7 +227,7 @@ func run(rv *revid.Revid, ns *netsender.Sender, l logging.Logger, nl *netlogger.
 		l.Debug("checking mode")
 		switch ns.Mode() {
 		case modePaused, modeCompleted:
-			l.Debug("mode is Paused, stopping revid")
+			l.Debug("mode is Paused or Completed, stopping revid")
 			rv.Stop()
 		case modeNormal, modeLoop:
 			l.Debug("mode is Normal or Loop, starting revid")
