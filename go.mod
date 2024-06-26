@@ -4,7 +4,7 @@ go 1.22.2
 
 require (
 	github.com/Comcast/gots/v2 v2.2.1
-	github.com/ausocean/client v1.0.0
+	github.com/ausocean/client v1.1.0
 	github.com/ausocean/utils v0.0.0-20240516071050-fe6d74a8ac16
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf
 	github.com/fsnotify/fsnotify v1.7.0

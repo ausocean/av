@@ -418,7 +418,7 @@ var Variables = []struct {
 	},
 	{
 		Name:   KeyMode,
-		Type:   "enum:Normal,Paused,Burst,Shutdown",
+		Type:   "enum:Normal,Paused,Burst,Shutdown,Completed",
 		Update: func(c *Config, v string) {},
 	},
 	{
