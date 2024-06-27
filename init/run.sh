@@ -44,8 +44,7 @@ exec 1>&2
 
 # Now set all required variables.
 PATH=$bin_dir:$PATH
-echo $PATH
-sudo -u $user HOME=$HOME PATH=$PATH $bin_path -version
+sudo -u $user HOME=$HOME PATH=$PATH $bin_path
 if [ $? -eq 0 ]
 then
   echo "Successfully exited rv"
