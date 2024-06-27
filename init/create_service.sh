@@ -39,10 +39,10 @@ WantedBy=multi-user.target
 service_name="$bin_name.service"
 
 # Now overwrite the service if it exists, or create the service then write.
-service_dir=/etc/systemd/system/$service_name
-if [ -f $service_dir ]; then
-  echo "$service" > $service_dir
+service_path=/etc/systemd/system/$service_name
+if [ -f $service_path ]; then
+  echo "$service" > $service_path
 else
-  touch $service_dir
-  echo "$service" > $service_dir
+  touch $service_path
+  echo "$service" > $service_path
 fi
