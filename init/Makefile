@@ -1,16 +1,16 @@
 # Install files and directories required by NetSender clients (such as gpio-netsender, rv, etc.).
 # Optionally you can create a dhcpcd.enter-hook for setting the MAC address. (install_set_mac).
+# CT must be passed to make for downloads:
+# 	sudo make download CT=ct
 # MA and DK must be passed to Make for an installation:
 # 	sudo make install MA=mac DK=dk
 # Dependencies:
 #   pkg-upgrade.sh
 #   run.sh
 #   create_service.sh
-# TODO: Make client type (CT) a parameter so this Makefile can be used for different devices.
 USER := $(shell whoami)
 BIN_DIR := /opt/ausocean/bin
 PATH := $(BIN_DIR):$(PATH)
-DEV_TYPE := camera
 BIN_NAME := rv
 BIN_PATH := $(BIN_DIR)/rv
 RUN_SCRIPT_PATH := $(BIN_DIR)/run.sh
@@ -44,7 +44,10 @@ ifeq ($(USER),root)
 endif
 
 upgrade:
-	$(UPGRADER_PATH) $(DEV_TYPE)
+ifeq ($(CT),)
+	$(error "Must provide client type using CT=")
+endif
+	$(UPGRADER_PATH) $(CT)
 
 make_dirs:
 	@if [ ! -d /var/netsender ] ; then \
