@@ -1,7 +1,7 @@
 #!/bin/bash
 # This script is utilised by Makefile for creation of a service responsible for the
 # running of a netsender client. The service lines are stored in a string allowing us
-# to substitute the GOPATH into the ExecStart path.
+# to substitute the ExecStart params.
 
 if [ $# -ne 2 ]; then
   echo "incorrect number of arguments, expected run script and binary directories"
@@ -21,7 +21,7 @@ user=pi
 bin_name=$(basename $bin_path)
 
 # Here are the lines that will go into the rv.service file. We'll set the
-# ExecStart field as the GOPATH we've obtained + the passed run script dir.
+# ExecStart field to the run script and its two arguments: the user and the binary path.
 service="
 [Unit]
 Description=Netsender Client for Media Collection and Forwarding
