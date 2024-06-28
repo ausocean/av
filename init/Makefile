@@ -1,43 +1,38 @@
 # Install files and directories required by NetSender clients (such as gpio-netsender, rv, etc.).
 # Optionally you can create a dhcpcd.enter-hook for setting the MAC address. (install_set_mac).
-# MA and DK must be passed to Make for an installation:
-# 	sudo make install MA=mac DK=dk
+# MA, DK, and Ct must be passed to Make for an installation:
+# 	sudo make install MA=mac DK=dk CT=ct
+# Dependencies:
+#   pkg-upgrade.sh
+#   create_service.sh
 USER := $(shell whoami)
-PATH := /usr/local/go/bin:$(PATH)
+RUNTIME_USER := pi
+BIN_DIR := /opt/ausocean/bin
+PATH := $(BIN_DIR):$(PATH)
 BIN_NAME := rv
-BIN_DIR := /src/github.com/ausocean/av/cmd/$(BIN_NAME)
-RUN_SCRIPT_DIR := /src/github.com/ausocean/av/init/run.sh
-
-# Change this to withcv if you wish to use CV.
-BUILD_TAG :=
+BIN_PATH := $(BIN_DIR)/rv
+RUN_SCRIPT_PATH := $(BIN_DIR)/run.sh
+UPGRADER_PATH := $(BIN_DIR)/pkg-upgrade.sh
 
 .SILENT:make_dirs
 .SILENT:hard_copy_files
 .SILENT:set_mac
 .SILENT:clean
 
-rebuild:
-	@chmod +x run.sh
-	@cd ../cmd/$(BIN_NAME); \
-	if [ -z "$(BUILD_TAG)" ]; then \
-		go build; \
-	else \
-		go build -tags $(BUILD_TAG); \
-	fi
-
-install: as_root make_dirs hard_copy_files rebuild syncreboot
+install: as_root make_dirs download hard_copy_files 
 	@echo "Install complete"
 
-install_no_rebuild: as_root make_dirs hard_copy_files syncreboot
-	@echo "Install complete"
-
-install_set_mac: as_root make_dirs hard_copy_files set_mac rebuild syncreboot
+install_set_mac: as_root make_dirs hard_copy_files set_mac
 	@echo "Install complete, MAC address set to $(MA)"
 
 as_root:
 ifneq ($(USER),root)
 	$(error Must run as superuser!)
 endif
+
+download:
+	$(UPGRADER_PATH) $(CT)
+	@chown -R $(RUNTIME_USER) $(BIN_DIR)
 
 make_dirs:
 	@if [ ! -d /var/netsender ] ; then \
@@ -59,14 +54,14 @@ endif
 	if [ -f /etc/systemd/system/$(BIN_NAME).service ] ; then \
 		echo "/etc/systemd/system/$(BIN_NAME).service overwritten" ; \
 	fi
-	bash create_service.sh $(RUN_SCRIPT_DIR) $(BIN_DIR)
+	bash create_service.sh $(RUN_SCRIPT_PATH) $(BIN_PATH)
 	@systemctl enable $(BIN_NAME).service
 	@if [ -f /etc/netsender.conf ] ; then \
 		echo "Backed up netsender.conf to /etc/netsender.conf.bak"; \
 		cp /etc/netsender.conf /etc/netsender.conf.bak ; \
 	fi
 	@printf "ma $(MA)\ndk $(DK)\n" > /etc/netsender.conf
-	bash permissions.sh
+	@chown $(RUNTIME_USER) /etc/netsender.conf
 
 set_mac:
 ifeq ($(MA),)
@@ -75,13 +70,6 @@ endif
 	@printf "ip link set eth0 address $(MA)\n" > /etc/dhcpcd.enter-hook
 	@chmod guo+x /etc/dhcpcd.enter-hook
 
-syncreboot:
-	@if [ -e ../../utils ]; then \
-		cd ../../utils; git checkout -f master; git pull; \
-	else \
-		cd ../../; git clone https://github.com/ausocean/utils; \
-	fi
-	@cd ../../utils/cmd/syncreboot; make; make install
 
 clean: as_root
 	rm -rf /var/netsender

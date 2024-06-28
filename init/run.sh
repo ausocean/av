@@ -8,14 +8,14 @@ if [ $# -ne 2 ]; then
   exit 1
 fi
 
-# This is the user in the GOPATH e.g. for /home/pi/go the user is pi.
-gopath_user=$1
+# This is the directory containing AusOcean binaries.
+bin_dir=/opt/ausocean/bin
 
-# This is the dir of the binary from the GOPATH e.g. /src/github.com/ausocean/av/cmd/rv.
-bin_dir=$2
+# This is the runtime user, typically 'pi'.
+user=$1
 
-# We'll get the bin name from the bin dir (assuming this is same as the bin dir name).
-bin_name=$(basename $bin_dir)
+# This is the path of the binary.
+bin_path=$2
 
 echo Set kernel parameters:
 # kernel settings to improve performance on Raspberry Pi
@@ -43,12 +43,8 @@ exec 2> /var/log/netsender/stream.log
 exec 1>&2
 
 # Now set all required variables.
-HOME=/home/$gopath_user
-GOPATH=$HOME/go
-RVPATH=$GOPATH$bin_dir
-PATH=$PATH:/usr/local/go/bin:$RVPATH
-cd $RVPATH
-sudo -u $gopath_user HOME=$HOME GOPATH=$GOPATH PATH=$PATH ./$bin_name
+PATH=$bin_dir:$PATH
+sudo -u $user HOME=$HOME PATH=$PATH $bin_path
 if [ $? -eq 0 ]
 then
   echo "Successfully exited rv"
