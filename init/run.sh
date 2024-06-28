@@ -11,7 +11,7 @@ fi
 # This is the directory containing AusOcean binaries.
 bin_dir=/opt/ausocean/bin
 
-# This is the current user.
+# This is the runtime user, typically 'pi'.
 user=$1
 
 # This is the path of the binary.
