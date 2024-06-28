@@ -36,7 +36,7 @@ endif
 
 download:
 	$(UPGRADER_PATH) $(CT)
-	chown -R $(RUNTIME_USER) $(BIN_DIR)
+	@chown -R $(RUNTIME_USER) $(BIN_DIR)
 
 make_dirs:
 	@if [ ! -d /var/netsender ] ; then \
@@ -65,7 +65,7 @@ endif
 		cp /etc/netsender.conf /etc/netsender.conf.bak ; \
 	fi
 	@printf "ma $(MA)\ndk $(DK)\n" > /etc/netsender.conf
-	chown $(RUNTIME_USER) /etc/netsender.conf
+	@chown $(RUNTIME_USER) /etc/netsender.conf
 
 set_mac:
 ifeq ($(MA),)
