@@ -4,7 +4,6 @@
 # 	sudo make install MA=mac DK=dk CT=ct
 # Dependencies:
 #   pkg-upgrade.sh
-#   run.sh
 #   create_service.sh
 USER := $(shell whoami)
 RUNTIME_USER := pi
