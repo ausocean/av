@@ -1,14 +1,13 @@
 # Install files and directories required by NetSender clients (such as gpio-netsender, rv, etc.).
 # Optionally you can create a dhcpcd.enter-hook for setting the MAC address. (install_set_mac).
-# CT must be passed to make for downloads:
-# 	sudo make download CT=ct
-# MA and DK must be passed to Make for an installation:
-# 	sudo make install MA=mac DK=dk
+# MA, DK, and Ct must be passed to Make for an installation:
+# 	sudo make install MA=mac DK=dk CT=ct
 # Dependencies:
 #   pkg-upgrade.sh
 #   run.sh
 #   create_service.sh
 USER := $(shell whoami)
+RUNTIME_USER := pi
 BIN_DIR := /opt/ausocean/bin
 PATH := $(BIN_DIR):$(PATH)
 BIN_NAME := rv
@@ -24,10 +23,7 @@ BUILD_TAG :=
 .SILENT:set_mac
 .SILENT:clean
 
-download: not_as_root upgrade
-	@echo "Download complete"
-
-install: as_root make_dirs hard_copy_files 
+install: as_root download make_dirs hard_copy_files 
 	@echo "Install complete"
 
 install_set_mac: as_root make_dirs hard_copy_files set_mac
@@ -38,16 +34,9 @@ ifneq ($(USER),root)
 	$(error Must run as superuser!)
 endif
 
-not_as_root:
-ifeq ($(USER),root)
-	$(error Must not run as superuser!)
-endif
-
-upgrade:
-ifeq ($(CT),)
-	$(error "Must provide client type using CT=")
-endif
+download:
 	$(UPGRADER_PATH) $(CT)
+	chown -R $(RUNTIME_USER) $(BIN_DIR)
 
 make_dirs:
 	@if [ ! -d /var/netsender ] ; then \
@@ -76,7 +65,7 @@ endif
 		cp /etc/netsender.conf /etc/netsender.conf.bak ; \
 	fi
 	@printf "ma $(MA)\ndk $(DK)\n" > /etc/netsender.conf
-	chown $(USER) /etc/netsender.conf
+	chown $(RUNTIME_USER) /etc/netsender.conf
 
 set_mac:
 ifeq ($(MA),)
