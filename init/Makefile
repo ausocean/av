@@ -15,15 +15,12 @@ BIN_PATH := $(BIN_DIR)/rv
 RUN_SCRIPT_PATH := $(BIN_DIR)/run.sh
 UPGRADER_PATH := $(BIN_DIR)/pkg-upgrade.sh
 
-# Change this to withcv if you wish to use CV.
-BUILD_TAG :=
-
 .SILENT:make_dirs
 .SILENT:hard_copy_files
 .SILENT:set_mac
 .SILENT:clean
 
-install: as_root download make_dirs hard_copy_files 
+install: as_root make_dirs download hard_copy_files 
 	@echo "Install complete"
 
 install_set_mac: as_root make_dirs hard_copy_files set_mac
