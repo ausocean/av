@@ -7,7 +7,8 @@
 #   create_service.sh
 USER := $(shell whoami)
 RUNTIME_USER := pi
-BIN_DIR := /opt/ausocean/bin
+INSTALL_DIR := /opt/ausocean
+BIN_DIR := $(INSTALL_DIR)/bin
 PATH := $(BIN_DIR):$(PATH)
 BIN_NAME := rv
 BIN_PATH := $(BIN_DIR)/rv
@@ -43,6 +44,23 @@ make_dirs:
 		mkdir /var/log/netsender; \
 		chmod guo+rwx /var/log/netsender; \
 	fi
+	@if [ ! -d $(INSTALL_DIR) ] ; then \
+		mkdir $(INSTALL_DIR); \
+		chmod guo+rwx $(INSTALL_DIR); \
+	fi
+	@if [ ! -d $(INSTALL_DIR)/bin ] ; then \
+		mkdir $(INSTALL_DIR)/bin; \
+		chmod guo+rwx $(INSTALL_DIR)/bin; \
+	fi
+	@if [ ! -d $(INSTALL_DIR)/doc ] ; then \
+		mkdir $(INSTALL_DIR)/doc; \
+		chmod guo+rwx $(INSTALL_DIR)/doc; \
+	fi
+	@if [ ! -d $(INSTALL_DIR)/data ] ; then \
+		mkdir $(INSTALL_DIR)/data; \
+		chmod guo+rwx $(INSTALL_DIR)/data; \
+	fi
+	@echo "Made directories"
 
 hard_copy_files:
 ifeq ($(MA),)
