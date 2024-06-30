@@ -1,6 +1,11 @@
 #!/bin/bash -e
 # This script launches rv. This is used by the rv.service file that will become
 # a systemd service after using the Makefile install* targets.
+version="v1.0.0"
+if [ "$1" == "-version" ] || [ "$1" == "-v" ]; then
+  echo "$version"
+  exit 0
+fi
 
 # Check that we have the correct number of arguments passed.
 if [ $# -ne 2 ]; then
