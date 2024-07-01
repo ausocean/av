@@ -71,7 +71,7 @@ const (
 	maxAmpVolume     = 100
 	volAddr          = 0x4B
 	i2cPort          = 1
-	confPath         = "/etc/speaker.json"
+	confPath         = "/opt/ausocean/data/speaker.json"
 	cachePath        = "/opt/ausocean/data/audio/"
 	defaultPath      = cachePath + "audio.wav"
 )
