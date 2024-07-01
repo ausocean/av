@@ -2,7 +2,7 @@
 # Optionally you can create a dhcpcd.enter-hook for setting the MAC address. (install_set_mac).
 # MA and DK must be passed to Make for an installation:
 # 	sudo make install BIN=binary MA=mac DK=dk CT=ct [SVC=service]
-# BIN the binary name (defaults to rv).
+# BIN is the binary name (defaults to rv).
 # CT is the client type (defaults to camera).
 # SVC is an optional service to be installed (without the .service extension)
 # Dependencies:
@@ -14,7 +14,6 @@ RUNTIME_USER := pi
 INSTALL_DIR := /opt/ausocean
 BIN_DIR := $(INSTALL_DIR)/bin
 PATH := $(BIN_DIR):$(PATH)
-RUN_SCRIPT_PATH := $(BIN_DIR)/run.sh
 UPGRADER_PATH := $(BIN_DIR)/pkg-upgrade.sh
 SYSTEMD_DIR := $(INSTALL_DIR)/systemd
 
@@ -84,6 +83,7 @@ make_dirs:
 download:
 	$(UPGRADER_PATH) $(CT)
 	@chown -R $(RUNTIME_USER) $(BIN_DIR)
+	@echo "Dowloaded $(CT) release"
 
 hard_copy_files:
 ifeq ($(MA),)
