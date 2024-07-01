@@ -3,7 +3,7 @@ Description=Netsender Client for Playing Sound
 
 [Service]
 Type=simple
-ExecStart=/home/pi/go/src/github.com/ausocean/av/cmd/speaker/speaker_run.sh
+ExecStart=/opt/ausocean/bin/speaker_run.sh
 Restart=on-failure
 
 [Install]
