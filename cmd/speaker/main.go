@@ -50,7 +50,7 @@ import (
 )
 
 // Current software version.
-const version = "v1.1.1"
+const version = "v1.2.0"
 
 // Logging configuration.
 const (
@@ -66,14 +66,14 @@ const (
 const (
 	netSendRetryTime = 5 * time.Second
 	defaultSleepTime = 60 // Seconds
-	pkg              = "rv: "
+	pkg              = "speaker: "
 	minAmpVolume     = 0
 	maxAmpVolume     = 100
 	volAddr          = 0x4B
 	i2cPort          = 1
 	confPath         = "/etc/speaker.json"
 	cachePath        = "/opt/ausocean/data/audio/"
-	defaultPath      = defaultPath + "audio.wav"
+	defaultPath      = cachePath + "audio.wav"
 )
 
 // cfgCache contains all the relevant keys used in the var cache.
