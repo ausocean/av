@@ -1,26 +1,30 @@
 # Install files and directories required by NetSender clients (such as gpio-netsender, rv, etc.).
 # Optionally you can create a dhcpcd.enter-hook for setting the MAC address. (install_set_mac).
-# MA, DK, and Ct must be passed to Make for an installation:
-# 	sudo make install MA=mac DK=dk CT=ct
+# MA and DK must be passed to Make for an installation:
+# 	sudo make install BIN=binary MA=mac DK=dk CT=ct [SVC=service]
+# BIN the binary name (defaults to rv).
+# CT is the client type (defaults to camera).
+# SVC is an optional service to be installed (without the .service extension)
 # Dependencies:
 #   pkg-upgrade.sh
-#   create_service.sh
+BIN := rv
+CT := camera
 USER := $(shell whoami)
 RUNTIME_USER := pi
 INSTALL_DIR := /opt/ausocean
 BIN_DIR := $(INSTALL_DIR)/bin
 PATH := $(BIN_DIR):$(PATH)
-BIN_NAME := rv
 BIN_PATH := $(BIN_DIR)/rv
 RUN_SCRIPT_PATH := $(BIN_DIR)/run.sh
 UPGRADER_PATH := $(BIN_DIR)/pkg-upgrade.sh
+SYSTEMD_DIR := $(INSTALL_DIR)/systemd
 
 .SILENT:make_dirs
 .SILENT:hard_copy_files
 .SILENT:set_mac
 .SILENT:clean
 
-install: as_root make_dirs download hard_copy_files 
+install: as_root pre_reqs make_dirs download hard_copy_files 
 	@echo "Install complete"
 
 install_set_mac: as_root make_dirs hard_copy_files set_mac
@@ -31,9 +35,21 @@ ifneq ($(USER),root)
 	$(error Must run as superuser!)
 endif
 
-download:
-	$(UPGRADER_PATH) $(CT)
-	@chown -R $(RUNTIME_USER) $(BIN_DIR)
+pre_reqs:
+	@if [ ! -d $(SYSTEMD_DIR) ] ; then \
+		echo "$(SYSTEMD_DIR) does not exist" ; \
+		exit 1; \
+	fi
+	@if [ ! -f $(SYSTEMD_DIR)/$(BIN).service ] ; then \
+		echo "$(SYSTEMD_DIR)/$(BIN).service does not exist"; \
+		exit 1; \
+	fi
+ifneq ($(SVC),)
+	@if [ ! -f $(SYSTEMD_DIR)/$(SVC).service ] ; then \
+		echo "$(SYSTEMD_DIR)/$(SVC).service does not exist"; \
+		exit 1; \
+	fi
+endif
 
 make_dirs:
 	@if [ ! -d /var/netsender ] ; then \
@@ -62,13 +78,13 @@ make_dirs:
 	fi
 	@if [ ! -d $(INSTALL_DIR)/data/audio ] ; then \
 		mkdir $(INSTALL_DIR)/data/audio; \
-		chmod guo+rwx $(INSTALL_DIR)/data/audio; \
-	fi
-	@if [ ! -d $(INSTALL_DIR)/systemd ] ; then \
-		mkdir $(INSTALL_DIR)/systemd; \
-		chmod guo+rwx $(INSTALL_DIR)/systemd; \
+		chmod guo+rwx $(INSTALL_DIR)/data; \
 	fi
 	@echo "Made directories"
+
+download:
+	$(UPGRADER_PATH) $(CT)
+	@chown -R $(RUNTIME_USER) $(BIN_DIR)
 
 hard_copy_files:
 ifeq ($(MA),)
@@ -77,11 +93,18 @@ endif
 ifeq ($(DK),)
 	$(error "Must provide device key using DK=")
 endif
-	if [ -f /etc/systemd/system/$(BIN_NAME).service ] ; then \
-		echo "/etc/systemd/system/$(BIN_NAME).service overwritten" ; \
+	@if [ -f /etc/systemd/system/$(BIN).service ] ; then \
+		echo "/etc/systemd/system/$(BIN).service overwritten" ; \
 	fi
-	bash create_service.sh $(RUN_SCRIPT_PATH) $(BIN_PATH)
-	@systemctl enable $(BIN_NAME).service
+	@cp -f $(SYSTEMD_DIR)/$(BIN).service /etc/systemd/system
+	@systemctl enable $(BIN).service
+ifneq ($(SVC),)
+	@if [ -f /etc/systemd/system/$(SVC).service ] ; then \
+		echo "/etc/systemd/system/$(SVC).service overwritten" ; \
+	fi
+	@cp -f $(SYSTEMD_DIR)/$(SVC).service /etc/systemd/system
+	@systemctl enable $(SVC).service
+endif
 	@if [ -f /etc/netsender.conf ] ; then \
 		echo "Backed up netsender.conf to /etc/netsender.conf.bak"; \
 		cp /etc/netsender.conf /etc/netsender.conf.bak ; \
@@ -100,6 +123,9 @@ endif
 clean: as_root
 	rm -rf /var/netsender
 	rm -rf /var/log/netsender
-	rm -rf /etc/systemd/system/$(BIN_NAME).service
+	rm -rf /etc/systemd/system/$(BIN).service
+ifneq ($(SVC),)
+	rm -rf /etc/systemd/system/$(SVC).service
+endif
 	rm -rf /etc/netsender.conf
 	@echo "Clean complete"
