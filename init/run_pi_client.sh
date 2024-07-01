@@ -26,7 +26,7 @@ if [ ! -f $bin_path ]; then
 fi
 echo Running $bin_path
 
-# Lernel settings to improve performance on Raspberry Pi.
+# Kernel settings to improve performance on Raspberry Pi.
 echo Set kernel parameters:
 # Tell Linux to fork optimistically.
 sudo sysctl -w vm.overcommit_memory=1
