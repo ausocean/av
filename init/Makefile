@@ -60,6 +60,10 @@ make_dirs:
 		mkdir $(INSTALL_DIR)/data; \
 		chmod guo+rwx $(INSTALL_DIR)/data; \
 	fi
+	@if [ ! -d $(INSTALL_DIR)/data/audio ] ; then \
+		mkdir $(INSTALL_DIR)/data/audio; \
+		chmod guo+rwx $(INSTALL_DIR)/data/audio; \
+	fi
 	@echo "Made directories"
 
 hard_copy_files:
