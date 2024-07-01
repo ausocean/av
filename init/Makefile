@@ -27,7 +27,7 @@ SYSTEMD_DIR := $(INSTALL_DIR)/systemd
 install: as_root pre_reqs make_dirs download hard_copy_files 
 	@echo "Install complete"
 
-install_set_mac: as_root make_dirs hard_copy_files set_mac
+install_set_mac: as_root pre_reqs make_dirs download hard_copy_files set_mac
 	@echo "Install complete, MAC address set to $(MA)"
 
 as_root:
