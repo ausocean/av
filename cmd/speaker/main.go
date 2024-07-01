@@ -50,7 +50,7 @@ import (
 )
 
 // Current software version.
-const version = "v1.1.0"
+const version = "v1.1.1"
 
 // Logging configuration.
 const (
@@ -72,7 +72,8 @@ const (
 	volAddr          = 0x4B
 	i2cPort          = 1
 	confPath         = "/etc/speaker.json"
-	defaultPath      = "/home/pi/audio.wav"
+	cachePath        = "/opt/ausocean/data/audio/"
+	defaultPath      = defaultPath + "audio.wav"
 )
 
 // cfgCache contains all the relevant keys used in the var cache.
@@ -439,8 +440,6 @@ func isOnlineResource(uri string) bool {
 // getAudio determines the source of the file (local or online),
 // fetches the audio into a file to be played from.
 func getAudio(uri string, playPath *string, l logging.Logger) error {
-	const cachePath = "/home/pi/"
-
 	// Update the target audio file from the specified source (URI).
 	if !isOnlineResource(uri) {
 		// If we are here, the URI points to a file so we can just change
