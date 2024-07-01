@@ -14,7 +14,6 @@ RUNTIME_USER := pi
 INSTALL_DIR := /opt/ausocean
 BIN_DIR := $(INSTALL_DIR)/bin
 PATH := $(BIN_DIR):$(PATH)
-BIN_PATH := $(BIN_DIR)/rv
 RUN_SCRIPT_PATH := $(BIN_DIR)/run.sh
 UPGRADER_PATH := $(BIN_DIR)/pkg-upgrade.sh
 SYSTEMD_DIR := $(INSTALL_DIR)/systemd
