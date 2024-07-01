@@ -117,7 +117,7 @@ ifeq ($(MA),)
 endif
 	@printf "ip link set eth0 address $(MA)\n" > /etc/dhcpcd.enter-hook
 	@chmod guo+x /etc/dhcpcd.enter-hook
-
+	@echo "Created /etc/dhcpcd.enter-hook"
 
 clean: as_root
 	rm -rf /var/netsender
