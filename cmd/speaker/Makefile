@@ -20,7 +20,7 @@ SPEAKER_CONF := '{"Path": "$(AUDIO_DIR)/$(AUDIO)", "Volume": "100"}'
 
 .SILENT:clean
 
-install: as_root make_dirs write_services set_conf_speaker
+install: as_root pre_reqs make_dirs write_services set_conf_speaker
 ifeq ($(CONFIG),true)
 	$(MAKE) write_conf
 	echo "conf and service files created/overwritten"
@@ -41,6 +41,20 @@ set_conf_speaker:
 		echo "/etc/speaker.json overwritten" ; \
 	fi
 	printf $(SPEAKER_CONF) > /etc/speaker.json
+
+pre_reqs:
+	@if [ ! -d $(SYSTEMD_DIR) ] ; then \
+		echo "$(SYSTEMD_DIR) does not exist" ; \
+		exit 1; \
+	fi
+	@if [ ! -f $(SYSTEMD_DIR)/$(BIN_NAME).service ] ; then \
+		exit "$(SYSTEMD_DIR)/$(BIN_NAME).service does not exist"; \
+		exit 1; \
+	fi
+	@if [ ! -f $(SYSTEMD_DIR)$(WIFI_SVC_NAME).service ] ; then \
+		exit "$(SYSTEMD_DIR)$(WIFI_SVC_NAME).service does not exist"; \
+		exit 1; \
+	fi
 
 make_dirs:
 	@if [ ! -d /var/netsender ] ; then \
@@ -70,9 +84,6 @@ make_dirs:
 	@if [ ! -d $(INSTALL_DIR)/data/audio ] ; then \
 		mkdir $(INSTALL_DIR)/data/audio; \
 		chmod guo+rwx $(INSTALL_DIR)/data/audio; \
-	fi
-	@if [ ! -d $(SYSTEMD_DIR) ] ; then \
-		$(error "$(SYSTEMD_DIR) does not exist or is empty"); \
 	fi
 
 write_services:
