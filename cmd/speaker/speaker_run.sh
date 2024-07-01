@@ -1,7 +1,9 @@
 #!/bin/sh -e
 # This script launches speaker on a pi, intended to run at boot time.
 
-SPEAKERPATH=/home/pi/go/src/github.com/ausocean/av/cmd/speaker
+bin_dir=/opt/ausocean/bin
+bin_path=$bin_dir/speaker
+user=pi
 
 echo Set kernel parameters:
 # kernel settings to improve performance on Raspberry Pi
@@ -29,12 +31,9 @@ exec 2> /var/log/netsender/stream.log
 exec 1>&2
 
 # set env, working dir and run speaker as pi user
-HOME=/home/pi
-GOPATH=$HOME/go
-SPEAKERPATH=$GOPATH/src/github.com/ausocean/av/cmd/speaker
-PATH=$PATH:/usr/local/go/bin:$SPEAKERPATH
-cd $SPEAKERPATH
-sudo HOME=$HOME GOPATH=$GOPATH PATH=$PATH ./speaker
+PATH=$bin_dir:$PATH
+sudo -u $user PATH=$PATH $bin_path
+PATH=$bin_dir:$PATH
 if [ $? -eq 0 ]
 then
   echo "Successfully exited speaker"
