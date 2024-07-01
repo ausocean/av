@@ -3,7 +3,7 @@ Description=Used to turn the pi's wifi off after a set delay after startup.
 
 [Service]
 Type=simple
-ExecStart=/home/pi/go/src/github.com/ausocean/av/scripts/wifi-off-delay_run.sh
+ExecStart=/opt/ausocean/bin/wifi-off-delay_run.sh
 Restart=on-failure
 
 [Install]
