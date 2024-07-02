@@ -46,7 +46,7 @@ import (
 )
 
 // Current software version.
-const version = "v1.6.0"
+const version = "v1.6.1"
 
 // Copyright information prefixed to all metadata.
 const (
