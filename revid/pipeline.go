@@ -10,14 +10,13 @@ AUTHORS
   Scott Barnard <scott@ausocean.org>
 
 LICENSE
-  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved. 
+  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved.
 
   The Software and all intellectual property rights associated
   therewith, including but not limited to copyrights, trademarks,
   patents, and trade secrets, are and will remain the exclusive
   property of the Australian Ocean Lab (AusOcean).
 */
-
 
 package revid
 
@@ -101,11 +100,12 @@ func (r *Revid) reset(c config.Config) error {
 				case codecutil.PCM:
 					st = mts.EncodePCM
 					encOptions = append(encOptions, mts.TimeBasedPSI(time.Duration(r.cfg.PSITime)*time.Second))
+					r.cfg.ClipDuration = 10 * time.Second
 					rate = 1 / r.cfg.RecPeriod
 				case codecutil.ADPCM:
 					st = mts.EncodeADPCM
 					encOptions = append(encOptions, mts.TimeBasedPSI(time.Duration(r.cfg.PSITime)*time.Second))
-					rate = 1 / r.cfg.RecPeriod
+					r.cfg.ClipDuration = 10 * time.Second
 				case codecutil.H264, codecutil.H265, codecutil.MJPEG:
 					return nil, fmt.Errorf("invalid input codec: %v for input: %v", r.cfg.InputCodec, r.cfg.Input)
 				default:

@@ -10,14 +10,13 @@ AUTHORS
   Scott Barnard <scott@ausocean.org>
 
 LICENSE
-  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved. 
+  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved.
 
   The Software and all intellectual property rights associated
   therewith, including but not limited to copyrights, trademarks,
   patents, and trade secrets, are and will remain the exclusive
   property of the Australian Ocean Lab (AusOcean).
 */
-
 
 // Package revid provides an API for reading, transcoding, and writing audio/video streams and files.
 package revid
@@ -31,7 +30,6 @@ import (
 
 	"github.com/ausocean/av/device"
 	"github.com/ausocean/av/filter"
-	"github.com/ausocean/av/container/mts"
 	"github.com/ausocean/av/revid/config"
 	"github.com/ausocean/client/pi/netsender"
 	"github.com/ausocean/utils/bitrate"
@@ -146,13 +144,9 @@ func (r *Revid) Start() error {
 	}
 	r.cfg.Logger.Info("revid reset")
 
-	// Calculate delay between frames based on FileFPS for video or
-	// between recording periods for audio.
+	// Calculate delay between frames if the FileFPS != 0. Otherwise use no delay.
 	d := time.Duration(0)
-	if r.cfg.Input == config.InputAudio {
-		d = time.Duration(r.cfg.RecPeriod * float64(time.Second))
-		mts.RealTime.Set(time.Now()) // Enable timestamps in MTS output, if any.
-	} else if r.cfg.FileFPS != 0 {
+	if r.cfg.FileFPS != 0 {
 		d = time.Duration(1000/r.cfg.FileFPS) * time.Millisecond
 	}
 
