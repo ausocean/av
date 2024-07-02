@@ -1,21 +1,26 @@
 # Install files and directories required by NetSender clients (such as gpio-netsender, rv, etc.).
 # Optionally you can create a dhcpcd.enter-hook for setting the MAC address. (install_set_mac).
 # MA and DK must be passed to Make for an installation:
-# 	sudo make install BIN=binary MA=mac DK=dk CT=ct [SVC=service]
+# 	sudo make install MA=mac DK=dk [BIN=binary] [CT=cient-type] [RU=runtime-user] [SVC=service]
 # BIN is the binary name (defaults to rv).
 # CT is the client type (defaults to camera).
+# RU is the runtime user (defaults to pi)
 # SVC is an optional service to be installed (without the .service extension)
 # Dependencies:
 #   pkg-upgrade.sh
+#   $(BIN).service
+#   $(SVC).service (optional)
 BIN := rv
 CT := camera
+RU := pi
 USER := $(shell whoami)
-RUNTIME_USER := pi
 INSTALL_DIR := /opt/ausocean
 BIN_DIR := $(INSTALL_DIR)/bin
+DOC_DIR := $(INSTALL_DIR)/doc
+DATA_DIR := $(INSTALL_DIR)/data
 PATH := $(BIN_DIR):$(PATH)
-UPGRADER_PATH := $(BIN_DIR)/pkg-upgrade.sh
-SYSTEMD_DIR := $(INSTALL_DIR)/systemd
+UPGRADER_SCRIPT := pkg-upgrade.sh
+UPGRADER_PATH := $(BIN_DIR)/$(UPGRADER_SCRIPT)
 
 .SILENT:make_dirs
 .SILENT:hard_copy_files
@@ -34,17 +39,13 @@ ifneq ($(USER),root)
 endif
 
 pre_reqs:
-	@if [ ! -d $(SYSTEMD_DIR) ] ; then \
-		echo "$(SYSTEMD_DIR) does not exist" ; \
-		exit 1; \
-	fi
-	@if [ ! -f $(SYSTEMD_DIR)/$(BIN).service ] ; then \
-		echo "$(SYSTEMD_DIR)/$(BIN).service does not exist"; \
+	@if [ ! -f $(BIN).service ] ; then \
+		echo "$(BIN).service does not exist"; \
 		exit 1; \
 	fi
 ifneq ($(SVC),)
-	@if [ ! -f $(SYSTEMD_DIR)/$(SVC).service ] ; then \
-		echo "$(SYSTEMD_DIR)/$(SVC).service does not exist"; \
+	@if [ ! -f $(SVC).service ] ; then \
+		echo "$(SVC).service does not exist"; \
 		exit 1; \
 	fi
 endif
@@ -62,27 +63,33 @@ make_dirs:
 		mkdir $(INSTALL_DIR); \
 		chmod guo+rwx $(INSTALL_DIR); \
 	fi
-	@if [ ! -d $(INSTALL_DIR)/bin ] ; then \
-		mkdir $(INSTALL_DIR)/bin; \
-		chmod guo+rwx $(INSTALL_DIR)/bin; \
+	@if [ ! -d $(BIN_DIR) ] ; then \
+		mkdir $(BIN_DIR); \
+		chmod guo+rwx $(BIN_DIR); \
 	fi
-	@if [ ! -d $(INSTALL_DIR)/doc ] ; then \
-		mkdir $(INSTALL_DIR)/doc; \
-		chmod guo+rwx $(INSTALL_DIR)/doc; \
+	@if [ ! -d $(DOC_DIR) ] ; then \
+		mkdir $(DOC_DIR); \
+		chmod guo+rwx $(DOC_DIR); \
 	fi
-	@if [ ! -d $(INSTALL_DIR)/data ] ; then \
-		mkdir $(INSTALL_DIR)/data; \
-		chmod guo+rwx $(INSTALL_DIR)/data; \
+	@if [ ! -d $(DATA_DIR) ] ; then \
+		mkdir $(DATA_DIR); \
+		chmod guo+rwx $(DATA_DIR); \
 	fi
-	@if [ ! -d $(INSTALL_DIR)/data/audio ] ; then \
-		mkdir $(INSTALL_DIR)/data/audio; \
-		chmod guo+rwx $(INSTALL_DIR)/data; \
+	@if [ ! -d $(DATA_DIR)/audio ] ; then \
+		mkdir $(DATA_DIR)/audio; \
+		chmod guo+rwx $(DATA_DIR); \
 	fi
 	@echo "Made directories"
 
 download:
+	@cp -pf $(UPGRADER_SCRIPT) $(UPGRADER_PATH)
+	@chmod guo+x $(UPGRADER_PATH)
+	@chown $(RU) $(UPGRADER_PATH)
+	@echo "$(UPGRADER_PATH) installed"
 	$(UPGRADER_PATH) $(CT)
-	@chown -R $(RUNTIME_USER) $(BIN_DIR)
+	@chown -R $(RU) $(BIN_DIR)
+	@chown -R $(RU) $(DOC_DIR)
+	@chown -R $(RU) $(DATA_DIR)
 	@echo "Dowloaded $(CT) release"
 
 hard_copy_files:
@@ -95,13 +102,13 @@ endif
 	@if [ -f /etc/systemd/system/$(BIN).service ] ; then \
 		echo "/etc/systemd/system/$(BIN).service overwritten" ; \
 	fi
-	@cp -f $(SYSTEMD_DIR)/$(BIN).service /etc/systemd/system
+	@cp -f $(BIN).service /etc/systemd/system
 	@systemctl enable $(BIN).service
 ifneq ($(SVC),)
 	@if [ -f /etc/systemd/system/$(SVC).service ] ; then \
 		echo "/etc/systemd/system/$(SVC).service overwritten" ; \
 	fi
-	@cp -f $(SYSTEMD_DIR)/$(SVC).service /etc/systemd/system
+	@cp -f $(SVC).service /etc/systemd/system
 	@systemctl enable $(SVC).service
 endif
 	@if [ -f /etc/netsender.conf ] ; then \
@@ -109,7 +116,7 @@ endif
 		cp /etc/netsender.conf /etc/netsender.conf.bak ; \
 	fi
 	@printf "ma $(MA)\ndk $(DK)\n" > /etc/netsender.conf
-	@chown $(RUNTIME_USER) /etc/netsender.conf
+	@chown $(RU) /etc/netsender.conf
 
 set_mac:
 ifeq ($(MA),)
