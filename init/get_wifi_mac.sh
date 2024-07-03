@@ -24,10 +24,6 @@ if [ -z "$MacLine" ]; then
 fi
 
 # Split MacLine by space to get the MAC address.
-read -r -a array <<< "$MacLine"
-MAC=${array[1]}
-
-# Split MacLine by space to get the MAC address.
 read -r -a lineparts <<< "$MacLine"
 MAC=${lineparts[1]}
 
