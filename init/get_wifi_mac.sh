@@ -2,7 +2,7 @@
 # Find the MAC address of the first WiFi device and create an AusOcean MAC address.
 # We do this heuristically by finding the first device that starts with DeviceLetter.
 # For ethernet, use "e"; for WiFi, use "w"; for loopback, use "l".
-DeviceLetter="e"
+DeviceLetter="w"
 Prefix="a0:a0:a0"
 
 # Get the output of the ip link show command.
