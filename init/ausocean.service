@@ -3,6 +3,7 @@ Description=AusOcean client service for Raspberry Pi
 
 [Service]
 Type=simple
+ExecStartPre=/opt/ausocean/bin/wifi-off-delay_run.sh &
 ExecStart=/opt/ausocean/bin/run_pi_client.sh
 Restart=on-failure
 
