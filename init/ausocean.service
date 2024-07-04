@@ -1,0 +1,10 @@
+[Unit]
+Description=AusOcean client service for Raspberry Pi
+
+[Service]
+Type=simple
+ExecStart=/opt/ausocean/bin/run_pi_client.sh
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
