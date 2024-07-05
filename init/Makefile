@@ -104,11 +104,11 @@ endif
 	@cp -f $(SVC) /etc/systemd/system
 	@systemctl enable $(SVC)
 ifneq ($(SVC),)
-	@if [ -f /etc/systemd/system/$(SVC).service ] ; then \
-		echo "/etc/systemd/system/$(SVC).service overwritten" ; \
+	@if [ -f /etc/systemd/system/$(SVC) ] ; then \
+		echo "/etc/systemd/system/$(SVC) overwritten" ; \
 	fi
-	@cp -f $(SVC).service /etc/systemd/system
-	@systemctl enable $(SVC).service
+	@cp -f $(SVC) /etc/systemd/system
+	@systemctl enable $(SVC)
 endif
 	@if [ -f /etc/netsender.conf ] ; then \
 		echo "Backed up netsender.conf to /etc/netsender.conf.bak"; \
