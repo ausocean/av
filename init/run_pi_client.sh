@@ -1,37 +1,37 @@
 #!/bin/bash -e
 # This script runs AusOcean client software on a Raspberry Pi.
 # It expects the binary to be under /opt/ausocean/bin.
-# Usage: run_pi_client.sh <user> <binary>
-version="v1.0.0"
+# Usage: run_pi_client.sh
+version="v1.1.0"
+user=pi
+bin_dir=/opt/ausocean/bin
+
 if [ "$1" == "-version" ] || [ "$1" == "-v" ]; then
   echo "$version"
   exit 0
 fi
 
-# Check that we have the correct number of arguments passed.
-if [ $# -ne 2 ]; then
-  echo "incorrect number of arguments, expected <user> and <binary>"
+bin_path=
+# Detect what binary we're using.
+if [[ -f "$bin_dir/rv" ]]; then
+  bin_path="$bin_dir/rv"
+elif [[ -f "$bin_dir/speaker" ]]; then
+  bin_path="$bin_dir/speaker"
+else
+  echo "Error: No 'rv' or 'speaker' binary found."
   exit 1
 fi
 
-# This is the runtime user, typically 'pi'.
-user=$1
-
-# Form the binary path and check it exists.
-bin_dir=/opt/ausocean/bin
-bin_path=$bin_dir/$2
-if [ ! -f $bin_path ]; then
-  echo "$bin_path not found"
-  exit 1
-fi
 echo Running $bin_path
 
-# Kernel settings to improve performance on Raspberry Pi.
-echo Set kernel parameters:
-# Tell Linux to fork optimistically.
-sudo sysctl -w vm.overcommit_memory=1
-# Minimize swapping, without disabling it completely.
-sudo sysctl -w vm.swappiness=1
+if [[ -f "/etc/os-release" && $(grep -i "Raspbian" /etc/os-release) ]]; then
+  # Kernel settings to improve performance on Raspberry Pi.
+  echo Set kernel parameters:
+  # Tell Linux to fork optimistically.
+  sudo sysctl -w vm.overcommit_memory=1
+  # Minimize swapping, without disabling it completely.
+  sudo sysctl -w vm.swappiness=1
+fi
 
 # The following required directories _should_ already exist
 if [ ! -d /var/log/netsender ]; then
