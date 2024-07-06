@@ -1,18 +1,18 @@
 # Install files and directories required by NetSender clients (such as gpio-netsender, rv, etc.).
 # Optionally you can create a dhcpcd.enter-hook for setting the MAC address. (install_set_mac).
 # MA and DK must be passed to Make for an installation:
-# 	sudo make install MA=mac DK=dk [BIN=binary] [CT=cient-type] [RU=runtime-user] [SVC=service]
+# 	sudo make install MA=mac DK=dk [BIN=binary] [CT=cient-type] [RU=runtime-user]
 # BIN is the binary name (defaults to rv).
 # CT is the client type (defaults to camera).
 # RU is the runtime user (defaults to pi)
 # SVC is an optional service to be installed (without the .service extension)
 # Dependencies:
 #   pkg-upgrade.sh
-#   $(BIN).service
-#   $(SVC).service (optional)
+#   ausocean.service
 BIN := rv
 CT := camera
 RU := pi
+SVC := ausocean.service
 USER := $(shell whoami)
 INSTALL_DIR := /opt/ausocean
 BIN_DIR := $(INSTALL_DIR)/bin
@@ -39,16 +39,15 @@ ifneq ($(USER),root)
 endif
 
 pre_reqs:
-	@if [ ! -f $(BIN).service ] ; then \
-		echo "$(BIN).service does not exist"; \
+	@if [ ! -f $(UPGRADER_SCRIPT) ] ; then \
+		echo "$(UPGRADER_SCRIPT) does not exist"; \
 		exit 1; \
 	fi
-ifneq ($(SVC),)
-	@if [ ! -f $(SVC).service ] ; then \
-		echo "$(SVC).service does not exist"; \
+	@if [ ! -f $(SVC) ] ; then \
+		echo "$(SVC) does not exist"; \
 		exit 1; \
 	fi
-endif
+	@echo "Pre-reqs OK"
 
 make_dirs:
 	@if [ ! -d /var/netsender ] ; then \
@@ -99,18 +98,11 @@ endif
 ifeq ($(DK),)
 	$(error "Must provide device key using DK=")
 endif
-	@if [ -f /etc/systemd/system/$(BIN).service ] ; then \
-		echo "/etc/systemd/system/$(BIN).service overwritten" ; \
+	@if [ -f /etc/systemd/system/$(SVC) ] ; then \
+		echo "/etc/systemd/system/$(SVC) overwritten" ; \
 	fi
-	@cp -f $(BIN).service /etc/systemd/system
-	@systemctl enable $(BIN).service
-ifneq ($(SVC),)
-	@if [ -f /etc/systemd/system/$(SVC).service ] ; then \
-		echo "/etc/systemd/system/$(SVC).service overwritten" ; \
-	fi
-	@cp -f $(SVC).service /etc/systemd/system
-	@systemctl enable $(SVC).service
-endif
+	@cp -f $(SVC) /etc/systemd/system
+	@systemctl enable $(SVC)
 	@if [ -f /etc/netsender.conf ] ; then \
 		echo "Backed up netsender.conf to /etc/netsender.conf.bak"; \
 		cp /etc/netsender.conf /etc/netsender.conf.bak ; \
@@ -129,9 +121,6 @@ endif
 clean: as_root
 	rm -rf /var/netsender
 	rm -rf /var/log/netsender
-	rm -rf /etc/systemd/system/$(BIN).service
-ifneq ($(SVC),)
-	rm -rf /etc/systemd/system/$(SVC).service
-endif
+	rm -rf /etc/systemd/system/$(SVC)
 	rm -rf /etc/netsender.conf
 	@echo "Clean complete"
