@@ -9,14 +9,13 @@ AUTHOR
   David Sutton <davidsutton@ausocean.org>
 
 LICENSE
-  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved. 
+  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved.
 
   The Software and all intellectual property rights associated
   therewith, including but not limited to copyrights, trademarks,
   patents, and trade secrets, are and will remain the exclusive
   property of the Australian Ocean Lab (AusOcean).
 */
-
 
 package pcm
 
@@ -76,7 +75,7 @@ func TestLowPass(t *testing.T) {
 	}
 
 	// Read audio from the test location.
-	const fileName = "../../../test/test-data/av/input/lp_4500.pcm"
+	const fileName = "../../../test/av/input/lp_4500.pcm"
 	expectedAudio, err := os.ReadFile(fileName)
 	if err != nil {
 		t.Fatalf("File for comparison not read.\n\t%s", err)
@@ -125,7 +124,7 @@ func TestHighPass(t *testing.T) {
 	}
 
 	// Read audio from the test location.
-	const fileName = "../../../test/test-data/av/input/hp_4500.pcm"
+	const fileName = "../../../test/av/input/hp_4500.pcm"
 	expectedAudio, err := os.ReadFile(fileName)
 	if err != nil {
 		t.Fatalf("File for comparison not read.\n\t%s", err)
@@ -184,7 +183,7 @@ func TestBandPass(t *testing.T) {
 	}
 
 	// Read audio from test location.
-	const fileName = "../../../test/test-data/av/input/bp_4500-9500.pcm"
+	const fileName = "../../../test/av/input/bp_4500-9500.pcm"
 	expectedAudio, err := os.ReadFile(fileName)
 	if err != nil {
 		t.Fatalf("File for comparison not read.\n\t%s", err)
@@ -236,7 +235,7 @@ func TestBandStop(t *testing.T) {
 	}
 
 	// Read audio from test location.
-	const fileName = "../../../test/test-data/av/input/bs_4500-9500.pcm"
+	const fileName = "../../../test/av/input/bs_4500-9500.pcm"
 	expectedAudio, err := os.ReadFile(fileName)
 	if err != nil {
 		t.Fatalf("File for comparison not read.\n\t%s", err)
@@ -250,7 +249,7 @@ func TestBandStop(t *testing.T) {
 // after application, as well as comparing against an expected audio file.
 func TestAmplifier(t *testing.T) {
 	// Load a simple sine wave with amplitude of 0.1 and load into buffer.
-	const audioFileName = "../../../test/test-data/av/input/sine.pcm"
+	const audioFileName = "../../../test/av/input/sine.pcm"
 	lowSine, err := os.ReadFile(audioFileName)
 	if err != nil {
 		t.Errorf("File for filtering not read.\n\t%s", err)
@@ -287,7 +286,7 @@ func TestAmplifier(t *testing.T) {
 	}
 
 	// Load expected audio file.
-	const compFileName = "../../../test/test-data/av/input/amp_5.pcm"
+	const compFileName = "../../../test/av/input/amp_5.pcm"
 	expectedAudio, err := os.ReadFile(compFileName)
 	if err != nil {
 		t.Fatalf("File for comparison not read.\n\t%s", err)

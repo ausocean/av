@@ -164,7 +164,7 @@ func TestEncodePcm(t *testing.T) {
 		t.Fatalf("could not create MTS encoder, failed with error: %v", err)
 	}
 
-	inPath := "../../../test/test-data/av/input/sweep_400Hz_20000Hz_-3dBFS_5s_48khz.pcm"
+	inPath := "../../../test/av/input/sweep_400Hz_20000Hz_-3dBFS_5s_48khz.pcm"
 	inPcm, err := ioutil.ReadFile(inPath)
 	if err != nil {
 		t.Errorf("unable to read file: %v", err)
