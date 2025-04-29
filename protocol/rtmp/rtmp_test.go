@@ -11,14 +11,13 @@ AUTHORS
   Alan Noble <alan@ausocean.org>
 
 LICENSE
-  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved. 
+  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved.
 
   The Software and all intellectual property rights associated
   therewith, including but not limited to copyrights, trademarks,
   patents, and trade secrets, are and will remain the exclusive
   property of the Australian Ocean Lab (AusOcean).
 */
-
 
 package rtmp
 
@@ -41,14 +40,15 @@ const (
 	testApp      = "live2"
 	testBaseURL  = rtmpProtocol + "://" + testHost + "/" + testApp + "/"
 	testTimeout  = 30
-	testDataDir  = "../../test/test-data/av/input"
+	testDataDir  = "../../test/av/input"
 )
 
 // testVerbosity controls the amount of output.
 // NB: This is not the log level, which is DebugLevel.
-//   0: suppress logging completely
-//   1: log messages only
-//   2: log messages with errors, if any
+//
+//	0: suppress logging completely
+//	1: log messages only
+//	2: log messages with errors, if any
 var testVerbosity = 1
 
 // testKey is the YouTube RTMP key required for YouTube streaming (RTMP_TEST_KEY env var).
