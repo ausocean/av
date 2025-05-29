@@ -9,14 +9,13 @@ AUTHOR
   Trek Hopton <trek@ausocean.org>
 
 LICENSE
-  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved. 
+  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved.
 
   The Software and all intellectual property rights associated
   therewith, including but not limited to copyrights, trademarks,
   patents, and trade secrets, are and will remain the exclusive
   property of the Australian Ocean Lab (AusOcean).
 */
-
 
 package pcm
 
@@ -30,8 +29,8 @@ import (
 // TestResample tests the Resample function using a pcm file that contains audio of a freq. sweep.
 // The output of the Resample function is compared with a file containing the expected result.
 func TestResample(t *testing.T) {
-	inPath := "../../../test/test-data/av/input/sweep_400Hz_20000Hz_-3dBFS_5s_48khz.pcm"
-	expPath := "../../../test/test-data/av/output/sweep_400Hz_20000Hz_resampled_48to8kHz.pcm"
+	inPath := "../../../test/av/input/sweep_400Hz_20000Hz_-3dBFS_5s_48khz.pcm"
+	expPath := "../../../test/av/output/sweep_400Hz_20000Hz_resampled_48to8kHz.pcm"
 
 	// Read input pcm.
 	inPcm, err := ioutil.ReadFile(inPath)
@@ -71,8 +70,8 @@ func TestResample(t *testing.T) {
 // TestStereoToMono tests the StereoToMono function using a pcm file that contains stereo audio.
 // The output of the StereoToMono function is compared with a file containing the expected mono audio.
 func TestStereoToMono(t *testing.T) {
-	inPath := "../../../test/test-data/av/input/stereo_DTMF_tones.pcm"
-	expPath := "../../../test/test-data/av/output/mono_DTMF_tones.pcm"
+	inPath := "../../../test/av/input/stereo_DTMF_tones.pcm"
+	expPath := "../../../test/av/output/mono_DTMF_tones.pcm"
 
 	// Read input pcm.
 	inPcm, err := ioutil.ReadFile(inPath)

@@ -9,14 +9,13 @@ AUTHOR
   Trek Hopton <trek@ausocean.org>
 
 LICENSE
-  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved. 
+  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved.
 
   The Software and all intellectual property rights associated
   therewith, including but not limited to copyrights, trademarks,
   patents, and trade secrets, are and will remain the exclusive
   property of the Australian Ocean Lab (AusOcean).
 */
-
 
 package adpcm
 
@@ -30,7 +29,7 @@ import (
 // then compare the result with expected ADPCM.
 func TestEncodeBlock(t *testing.T) {
 	// Read input pcm.
-	pcm, err := ioutil.ReadFile("../../../test/test-data/av/input/original_8kHz_adpcm_test.pcm")
+	pcm, err := ioutil.ReadFile("../../../test/av/input/original_8kHz_adpcm_test.pcm")
 	if err != nil {
 		t.Errorf("Unable to read input PCM file: %v", err)
 	}
@@ -44,7 +43,7 @@ func TestEncodeBlock(t *testing.T) {
 	}
 
 	// Read expected adpcm file.
-	exp, err := ioutil.ReadFile("../../../test/test-data/av/output/encoded_8kHz_adpcm_test2.adpcm")
+	exp, err := ioutil.ReadFile("../../../test/av/output/encoded_8kHz_adpcm_test2.adpcm")
 	if err != nil {
 		t.Errorf("Unable to read expected ADPCM file: %v", err)
 	}
@@ -58,7 +57,7 @@ func TestEncodeBlock(t *testing.T) {
 // resulting PCM with the expected decoded PCM.
 func TestDecodeBlock(t *testing.T) {
 	// Read adpcm.
-	comp, err := ioutil.ReadFile("../../../test/test-data/av/input/encoded_8kHz_adpcm_test2.adpcm")
+	comp, err := ioutil.ReadFile("../../../test/av/input/encoded_8kHz_adpcm_test2.adpcm")
 	if err != nil {
 		t.Errorf("Unable to read input ADPCM file: %v", err)
 	}
@@ -72,7 +71,7 @@ func TestDecodeBlock(t *testing.T) {
 	}
 
 	// Read expected pcm file.
-	exp, err := ioutil.ReadFile("../../../test/test-data/av/output/decoded_8kHz_adpcm_test2.pcm")
+	exp, err := ioutil.ReadFile("../../../test/av/output/decoded_8kHz_adpcm_test2.pcm")
 	if err != nil {
 		t.Errorf("Unable to read expected PCM file: %v", err)
 	}
