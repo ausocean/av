@@ -29,10 +29,10 @@ const (
 	inputChanLength  = 500
 	outputChanLength = 500
 	videoHeaderSize  = 16
-	audioHeaderSize  = 2
-	sampleRate44Khz  = 3
-	cscPacket        = 0
-	dataPacket       = 1
+	audioHeaderSize  = 2 // The size of the audio header in bytes.
+	sampleRate44Khz  = 3 // The sound rate value for 44Khz sample rate.
+	cscPacket        = 0 // The packet type for a CSC packet.
+	dataPacket       = 1 // the packet type for a raw aac packet.
 )
 
 // Data representing silent audio (required for youtube)
