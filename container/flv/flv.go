@@ -10,14 +10,13 @@ AUTHORS
   Dan Kortschak <dan@ausocean.org>
 
 LICENSE
-  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved. 
+  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved.
 
   The Software and all intellectual property rights associated
   therewith, including but not limited to copyrights, trademarks,
   patents, and trade secrets, are and will remain the exclusive
   property of the Australian Ocean Lab (AusOcean).
 */
-
 
 // See https://wwwimages2.adobe.com/content/dam/acom/en/devnet/flv/video_file_format_spec_v10.pdf
 // for format specification.
@@ -106,6 +105,7 @@ type AudioTag struct {
 	SoundRate         uint8
 	SoundSize         bool
 	SoundType         bool
+	PacketType        uint8 // 0x0 - audio specific config, 0x1 - raw aac frame
 	Data              []byte
 	PrevTagSize       uint32
 }
@@ -121,7 +121,8 @@ func (t *AudioTag) Bytes() []byte {
 	orderPutUint24(b[4:7], t.Timestamp)
 	b[7] = t.TimestampExtended
 	b[11] = t.SoundFormat<<4 | t.SoundRate<<2 | btb(t.SoundSize)<<1 | btb(t.SoundType)
-	copy(b[12:], t.Data)
+	b[12] = t.PacketType
+	copy(b[13:], t.Data)
 	order.PutUint32(b[len(b)-4:], t.PrevTagSize)
 
 	return b

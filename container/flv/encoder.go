@@ -10,14 +10,13 @@ AUTHOR
   Saxon Nelson-Milton <saxon@ausocean.org>
 
 LICENSE
-  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved. 
+  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved.
 
   The Software and all intellectual property rights associated
   therewith, including but not limited to copyrights, trademarks,
   patents, and trade secrets, are and will remain the exclusive
   property of the Australian Ocean Lab (AusOcean).
 */
-
 
 package flv
 
@@ -29,18 +28,21 @@ import (
 const (
 	inputChanLength  = 500
 	outputChanLength = 500
-	audioSize        = 18
 	videoHeaderSize  = 16
+	audioHeaderSize = 2
+	sampleRate44Khz = 3
+	cscPacket = 0
+	dataPacket = 1
 )
 
 // Data representing silent audio (required for youtube)
 var (
-	dummyAudioTag1Data = []byte{
-		0x00, 0x12, 0x08, 0x56, 0xe5, 0x00,
+	dummyCSC = []byte{
+		0x12, 0x08, 0x56, 0xe5, 0x00,
 	}
 
-	dummyAudioTag2Data = []byte{
-		0x01, 0xdc, 0x00, 0x4c, 0x61, 0x76, 0x63, 0x35, 0x38,
+	dummyDataPacket = []byte{
+		0xdc, 0x00, 0x4c, 0x61, 0x76, 0x63, 0x35, 0x38,
 		0x2e, 0x36, 0x2e, 0x31, 0x30, 0x32, 0x00, 0x02, 0x30,
 		0x40, 0x0e,
 	}
@@ -49,20 +51,24 @@ var (
 // Encoder provides properties required for the generation of flv video
 // from raw video data
 type Encoder struct {
-	dst   io.WriteCloser
-	fps   int
-	audio bool
-	video bool
-	start time.Time
+	dst        io.WriteCloser
+	fps        int
+	audio      bool
+	video      bool
+	start      time.Time
+	stereoAudio bool
+	audioConfigSent bool
 }
 
 // NewEncoder retuns a new FLV encoder.
-func NewEncoder(dst io.WriteCloser, audio, video bool, fps int) (*Encoder, error) {
+func NewEncoder(dst io.WriteCloser, audio, video, stereoAudio bool, fps int) (*Encoder, error) {
 	e := Encoder{
 		dst:   dst,
 		fps:   fps,
 		audio: audio,
 		video: video,
+		stereoAudio: stereoAudio,
+		audioConfigSent: false,
 	}
 	return &e, nil
 }
@@ -168,29 +174,32 @@ func (s *frameScanner) readByte() (b byte, ok bool) {
 
 // write implements io.Writer. It takes raw h264 and encodes into flv, then
 // writes to the encoders io.Writer destination.
-func (e *Encoder) Write(frame []byte) (int, error) {
+func (e *Encoder) Write(videoFrame, audioFrame []byte) (int, error) {
 	var frameType byte
 	var packetType byte
+	var totalWritten int = 0
+
 	if e.start.IsZero() {
 		// This is the first frame, so write the PreviousTagSize0.
 		//
 		// See https://download.macromedia.com/f4v/video_file_format_spec_v10_1.pdf
 		// section E.3.
 		var zero [4]byte
-		_, err := e.dst.Write(zero[:])
+		written, err := e.dst.Write(zero[:])
+		totalWritten += written
 		if err != nil {
-			return 0, err
+			return totalWritten, err
 		}
 	}
 	timeStamp := e.getNextTimestamp()
 	// Do we have video to send off?
 	if e.video {
-		if isKeyFrame(frame) {
+		if isKeyFrame(videoFrame) {
 			frameType = KeyFrameType
 		} else {
 			frameType = InterFrameType
 		}
-		if isSequenceHeader(frame) {
+		if isSequenceHeader(videoFrame) {
 			packetType = SequenceHeader
 		} else {
 			packetType = AVCNALU
@@ -198,61 +207,52 @@ func (e *Encoder) Write(frame []byte) (int, error) {
 
 		tag := VideoTag{
 			TagType:           uint8(VideoTagType),
-			DataSize:          uint32(len(frame)) + DataHeaderLength,
+			DataSize:          uint32(len(videoFrame)) + DataHeaderLength,
 			Timestamp:         timeStamp,
 			TimestampExtended: NoTimestampExtension,
 			FrameType:         frameType,
 			Codec:             H264,
 			PacketType:        packetType,
 			CompositionTime:   0,
-			Data:              frame,
-			PrevTagSize:       uint32(videoHeaderSize + len(frame)),
+			Data:              videoFrame,
+			PrevTagSize:       uint32(videoHeaderSize + len(videoFrame)),
 		}
-		_, err := e.dst.Write(tag.Bytes())
+		written, err := e.dst.Write(tag.Bytes())
+		totalWritten += written
 		if err != nil {
-			return len(frame), err
+			return totalWritten, err
 		}
 	}
 	// Do we even have some audio to send off ?
 	if e.audio {
-		// Not sure why but we need two audio tags for dummy silent audio
-		// TODO: create constants or SoundSize and SoundType parameters
+		packetType := dataPacket
+		// if we haven't sent the audio config yet, then this frame must be the config
+		if !e.audioConfigSent {
+			packetType = cscPacket
+			e.audioConfigSent = true
+		}
 		tag := AudioTag{
 			TagType:           uint8(AudioTagType),
-			DataSize:          7,
+			DataSize:          uint32(len(audioFrame)) + audioHeaderSize,
 			Timestamp:         timeStamp,
 			TimestampExtended: NoTimestampExtension,
 			SoundFormat:       AACAudioFormat,
-			SoundRate:         3,
+			SoundRate:         sampleRate44Khz,
 			SoundSize:         true,
 			SoundType:         true,
-			Data:              dummyAudioTag1Data,
-			PrevTagSize:       uint32(audioSize),
+			PacketType: uint8(packetType),
+			Data:              audioFrame,
+			PrevTagSize:       uint32(len(audioFrame)) + audioHeaderSize + 11,
 		}
-		_, err := e.dst.Write(tag.Bytes())
+		written, err := e.dst.Write(tag.Bytes())
+		totalWritten += written
 		if err != nil {
-			return len(frame), err
+			return totalWritten, err
 		}
 
-		tag = AudioTag{
-			TagType:           uint8(AudioTagType),
-			DataSize:          21,
-			Timestamp:         timeStamp,
-			TimestampExtended: NoTimestampExtension,
-			SoundFormat:       AACAudioFormat,
-			SoundRate:         3,
-			SoundSize:         true,
-			SoundType:         true,
-			Data:              dummyAudioTag2Data,
-			PrevTagSize:       uint32(22),
-		}
-		_, err = e.dst.Write(tag.Bytes())
-		if err != nil {
-			return len(frame), err
-		}
 	}
 
-	return len(frame), nil
+	return totalWritten, nil
 }
 
 // Close will close the encoder destination.
