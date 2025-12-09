@@ -29,10 +29,10 @@ const (
 	inputChanLength  = 500
 	outputChanLength = 500
 	videoHeaderSize  = 16
-	audioHeaderSize = 2
-	sampleRate44Khz = 3
-	cscPacket = 0
-	dataPacket = 1
+	audioHeaderSize  = 2
+	sampleRate44Khz  = 3
+	cscPacket        = 0
+	dataPacket       = 1
 )
 
 // Data representing silent audio (required for youtube)
@@ -51,23 +51,23 @@ var (
 // Encoder provides properties required for the generation of flv video
 // from raw video data
 type Encoder struct {
-	dst        io.WriteCloser
-	fps        int
-	audio      bool
-	video      bool
-	start      time.Time
-	stereoAudio bool
+	dst             io.WriteCloser
+	fps             int
+	audio           bool
+	video           bool
+	start           time.Time
+	stereoAudio     bool
 	audioConfigSent bool
 }
 
 // NewEncoder retuns a new FLV encoder.
 func NewEncoder(dst io.WriteCloser, audio, video, stereoAudio bool, fps int) (*Encoder, error) {
 	e := Encoder{
-		dst:   dst,
-		fps:   fps,
-		audio: audio,
-		video: video,
-		stereoAudio: stereoAudio,
+		dst:             dst,
+		fps:             fps,
+		audio:           audio,
+		video:           video,
+		stereoAudio:     stereoAudio,
 		audioConfigSent: false,
 	}
 	return &e, nil
@@ -239,8 +239,8 @@ func (e *Encoder) Write(videoFrame, audioFrame []byte) (int, error) {
 			SoundFormat:       AACAudioFormat,
 			SoundRate:         sampleRate44Khz,
 			SoundSize:         true,
-			SoundType:         true,
-			PacketType: uint8(packetType),
+			SoundType:         e.stereoAudio,
+			PacketType:        uint8(packetType),
 			Data:              audioFrame,
 			PrevTagSize:       uint32(len(audioFrame)) + audioHeaderSize + 11,
 		}

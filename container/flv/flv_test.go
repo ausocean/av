@@ -9,14 +9,13 @@ AUTHORS
   Saxon A. Nelson-Milton <saxon@ausocean.org>
 
 LICENSE
-  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved. 
+  Copyright (C) 2024 the Australian Ocean Lab (AusOcean). All Rights Reserved.
 
   The Software and all intellectual property rights associated
   therewith, including but not limited to copyrights, trademarks,
   patents, and trade secrets, are and will remain the exclusive
   property of the Australian Ocean Lab (AusOcean).
 */
-
 
 package flv
 
@@ -84,7 +83,7 @@ func TestAudioTagBytes(t *testing.T) {
 				SoundRate:         3,
 				SoundSize:         true,
 				SoundType:         true,
-				PacketType: 1,
+				PacketType:        1,
 				Data:              []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07},
 			},
 			expected: []byte{
@@ -94,7 +93,7 @@ func TestAudioTagBytes(t *testing.T) {
 				0x38,             // TimestampExtended.
 				0x00, 0x00, 0x00, // StreamID. (always 0)
 				0xaf,                                     // SoundFormat=1010,SoundRate=11,SoundSize=1,SoundType=1
-				0x01, // PacketType = dataPacket
+				0x01,                                     // PacketType = dataPacket
 				0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, // AudioData.
 				0x00, 0x00, 0x00, 0x00, // previousTagSize.
 			},
