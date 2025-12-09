@@ -53,20 +53,16 @@ var (
 type Encoder struct {
 	dst             io.WriteCloser
 	fps             int
-	audio           bool
-	video           bool
 	start           time.Time
 	stereoAudio     bool
 	audioConfigSent bool
 }
 
 // NewEncoder retuns a new FLV encoder.
-func NewEncoder(dst io.WriteCloser, audio, video, stereoAudio bool, fps int) (*Encoder, error) {
+func NewEncoder(dst io.WriteCloser, stereoAudio bool, fps int) (*Encoder, error) {
 	e := Encoder{
 		dst:             dst,
 		fps:             fps,
-		audio:           audio,
-		video:           video,
 		stereoAudio:     stereoAudio,
 		audioConfigSent: false,
 	}
@@ -172,9 +168,9 @@ func (s *frameScanner) readByte() (b byte, ok bool) {
 	return b, true
 }
 
-// write implements io.Writer. It takes raw h264 and encodes into flv, then
+// WriteVideo takes raw h264 and encodes into flv, then
 // writes to the encoders io.Writer destination.
-func (e *Encoder) Write(videoFrame, audioFrame []byte) (int, error) {
+func (e *Encoder) WriteVideo(videoFrame []byte) (int, error) {
 	var frameType byte
 	var packetType byte
 	var totalWritten int = 0
@@ -192,67 +188,126 @@ func (e *Encoder) Write(videoFrame, audioFrame []byte) (int, error) {
 		}
 	}
 	timeStamp := e.getNextTimestamp()
-	// Do we have video to send off?
-	if e.video {
-		if isKeyFrame(videoFrame) {
-			frameType = KeyFrameType
-		} else {
-			frameType = InterFrameType
-		}
-		if isSequenceHeader(videoFrame) {
-			packetType = SequenceHeader
-		} else {
-			packetType = AVCNALU
-		}
-
-		tag := VideoTag{
-			TagType:           uint8(VideoTagType),
-			DataSize:          uint32(len(videoFrame)) + DataHeaderLength,
-			Timestamp:         timeStamp,
-			TimestampExtended: NoTimestampExtension,
-			FrameType:         frameType,
-			Codec:             H264,
-			PacketType:        packetType,
-			CompositionTime:   0,
-			Data:              videoFrame,
-			PrevTagSize:       uint32(videoHeaderSize + len(videoFrame)),
-		}
-		written, err := e.dst.Write(tag.Bytes())
-		totalWritten += written
-		if err != nil {
-			return totalWritten, err
-		}
+	if isKeyFrame(videoFrame) {
+		frameType = KeyFrameType
+	} else {
+		frameType = InterFrameType
 	}
-	// Do we even have some audio to send off ?
-	if e.audio {
-		packetType := dataPacket
-		// if we haven't sent the audio config yet, then this frame must be the config
-		if !e.audioConfigSent {
-			packetType = cscPacket
-			e.audioConfigSent = true
-		}
-		tag := AudioTag{
-			TagType:           uint8(AudioTagType),
-			DataSize:          uint32(len(audioFrame)) + audioHeaderSize,
-			Timestamp:         timeStamp,
-			TimestampExtended: NoTimestampExtension,
-			SoundFormat:       AACAudioFormat,
-			SoundRate:         sampleRate44Khz,
-			SoundSize:         true,
-			SoundType:         e.stereoAudio,
-			PacketType:        uint8(packetType),
-			Data:              audioFrame,
-			PrevTagSize:       uint32(len(audioFrame)) + audioHeaderSize + 11,
-		}
-		written, err := e.dst.Write(tag.Bytes())
-		totalWritten += written
-		if err != nil {
-			return totalWritten, err
-		}
+	if isSequenceHeader(videoFrame) {
+		packetType = SequenceHeader
+	} else {
+		packetType = AVCNALU
+	}
 
+	tag := VideoTag{
+		TagType:           uint8(VideoTagType),
+		DataSize:          uint32(len(videoFrame)) + DataHeaderLength,
+		Timestamp:         timeStamp,
+		TimestampExtended: NoTimestampExtension,
+		FrameType:         frameType,
+		Codec:             H264,
+		PacketType:        packetType,
+		CompositionTime:   0,
+		Data:              videoFrame,
+		PrevTagSize:       uint32(videoHeaderSize + len(videoFrame)),
+	}
+	written, err := e.dst.Write(tag.Bytes())
+	totalWritten += written
+	if err != nil {
+		return totalWritten, err
 	}
 
 	return totalWritten, nil
+}
+
+// An adapter that provides the io.Writer interface for WriteVideo.
+type VideoWriterAdapter struct {
+	Encoder *Encoder
+}
+
+// Write implements the io.Writer interface.
+// It takes in a single frame of raw h264 and encodes in in an flv.
+func (a *VideoWriterAdapter) Write(p []byte) (n int, err error) {
+	n, err = a.Encoder.WriteVideo(p)
+	return n, err
+}
+
+// A decorator that writes dummy audio at the same time as video.
+// Useful for when you don't want any audio.
+type DummyAudioDecorator struct {
+	Encoder *Encoder
+}
+
+// Write implements the io.Writer interface
+// It takes in a single frame of raw h264, writes dummy audio, and encodes them into an flv.
+func (d *DummyAudioDecorator) Write(frame []byte) (int, error) {
+	// If the audio config hasn't been sent yet, then write the dummy CSC
+	// Otherwise, write the normal dummy audio packet
+	if !d.Encoder.audioConfigSent {
+		d.Encoder.WriteAudio(dummyCSC)
+	}
+	d.Encoder.WriteAudio(dummyDataPacket)
+	n, err := d.Encoder.WriteVideo(frame)
+
+	return n, err
+}
+
+// WriteAudio takes raw aac and encodes into flv, then
+// writes to the encoders io.Writer destination.
+func (e *Encoder) WriteAudio(audioFrame []byte) (int, error) {
+	var totalWritten int = 0
+
+	if e.start.IsZero() {
+		// This is the first frame, so write the PreviousTagSize0.
+		//
+		// See https://download.macromedia.com/f4v/video_file_format_spec_v10_1.pdf
+		// section E.3.
+		var zero [4]byte
+		written, err := e.dst.Write(zero[:])
+		totalWritten += written
+		if err != nil {
+			return totalWritten, err
+		}
+	}
+	timeStamp := e.getNextTimestamp()
+	packetType := dataPacket
+	// If we haven't sent the audio config yet, then this frame must be the config.
+	if !e.audioConfigSent {
+		packetType = cscPacket
+		e.audioConfigSent = true
+	}
+	tag := AudioTag{
+		TagType:           uint8(AudioTagType),
+		DataSize:          uint32(len(audioFrame)) + audioHeaderSize,
+		Timestamp:         timeStamp,
+		TimestampExtended: NoTimestampExtension,
+		SoundFormat:       AACAudioFormat,
+		SoundRate:         sampleRate44Khz,
+		SoundSize:         true,
+		SoundType:         e.stereoAudio,
+		PacketType:        uint8(packetType),
+		Data:              audioFrame,
+		PrevTagSize:       uint32(len(audioFrame)) + audioHeaderSize + 11,
+	}
+	written, err := e.dst.Write(tag.Bytes())
+	totalWritten += written
+	if err != nil {
+		return totalWritten, err
+	}
+
+	return totalWritten, nil
+}
+
+// An adapter that provides the io.Writer interface for WriteAudio.
+type AudioWriterAdapter struct {
+	Encoder *Encoder
+}
+
+// Write implements the io.Writer interface.
+// It takes in a single frame of raw aac and encodes in in an flv.
+func (a *AudioWriterAdapter) Write(p []byte) (n int, err error) {
+	n, err = a.Encoder.WriteAudio(p)
+	return n, err
 }
 
 // Close will close the encoder destination.
