@@ -98,14 +98,14 @@ func ReadADTSFrame(r io.Reader) (*ADTSHeader, []byte, error) {
 	// The next 4 bytes are required for the variable fields.
 
 	// Frame Length (13 bits) - Bits 25-13 (STRADDLES BYTE 3, 4, 5)
-    // We need 4 bits from Byte 3, all 8 bits from Byte 4, and 1 bit from Byte 5.
+	// We need 4 bits from Byte 3, all 8 bits from Byte 4, and 1 bit from Byte 5.
 
-    // Byte 3 (last 2 bits, 2 bits) -> MSBs
-    varFrameLength := uint16(buf[3] & 0x0F) << 11
-    // Byte 4 (all 8 bits, 8 bits) -> Middle bits
-    varFrameLength |= uint16(buf[4]) << 3
-    // Byte 5 (first 3 bits, 3 bit) -> LSB
-    varFrameLength |= uint16(buf[5] & 0xE0) >> 5
+	// Byte 3 (last 2 bits, 2 bits) -> MSBs
+	varFrameLength := uint16(buf[3]&0x0F) << 11
+	// Byte 4 (all 8 bits, 8 bits) -> Middle bits
+	varFrameLength |= uint16(buf[4]) << 3
+	// Byte 5 (first 3 bits, 3 bit) -> LSB
+	varFrameLength |= uint16(buf[5]&0xE0) >> 5
 
 	header.FrameLength = varFrameLength
 
@@ -149,7 +149,6 @@ func ReadADTSFrame(r io.Reader) (*ADTSHeader, []byte, error) {
 			return header, nil, fmt.Errorf("failed to skip CRC checksum: %w", err)
 		}
 	}
-
 
 	return header, payloadBuf, nil
 }
@@ -203,4 +202,3 @@ func ADTSHeaderToAudioSpecificConfig(header *ADTSHeader) ([]byte, error) {
 
 	return config, nil
 }
-
