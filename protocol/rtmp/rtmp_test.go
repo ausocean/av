@@ -24,12 +24,14 @@ package rtmp
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"runtime"
 	"testing"
 	"time"
 
+	codecutil "github.com/ausocean/av/codec/aac"
 	"github.com/ausocean/av/codec/h264"
 	"github.com/ausocean/av/container/flv"
 )
@@ -221,13 +223,199 @@ func (rs *rtmpSender) Write(p []byte) (int, error) {
 
 func (rs *rtmpSender) Close() error { return nil }
 
-// TestFromFile tests streaming from an video file comprising raw H.264.
-// The test file is supplied via the RTMP_TEST_FILE environment variable.
+// FrameReadResult: The internal communication structure from Lexers.
+type FrameReadResult struct {
+	Data []byte
+	Err  error
+}
+
+// PipeWriter is a thread-safe io.Writer that simply sends data to a channel.
+type PipeWriter struct {
+	Output chan FrameReadResult
+}
+
+func (p *PipeWriter) Write(data []byte) (n int, err error) {
+    // Create a copy of the data, as the source buffer might be reused by the lexer
+    dataCopy := make([]byte, len(data))
+    copy(dataCopy, data)
+
+	p.Output <- FrameReadResult{Data: dataCopy, Err: nil}
+	return len(data), nil
+}
+
+// StartVideoLexerWrapper wraps the h264 lexer and redirects its output into a channel.
+func StartVideoLexerWrapper(src io.Reader) chan FrameReadResult {
+	// 1. Create the output channel for the video frames
+	c := make(chan FrameReadResult)
+
+	// 2. Create the custom PipeWriter that directs writes to the channel 'c'
+	writer := &PipeWriter{Output: c}
+
+	go func() {
+        // We use a zero delay because timing is handled by the central scheduler, not the lexer.
+		err := h264.Lex(writer, src, 0)
+
+		if err != nil && err != io.EOF {
+			// Send any non-EOF error back through the channel
+			c <- FrameReadResult{Err: err}
+		}
+		// When the lexer finishes (returns io.EOF), close the channel
+		close(c)
+	}()
+	return c
+}
+
+// StartAudioLexerWrapper reads all ADTS frames into a channel.
+func StartAudioLexerWrapper(r io.Reader) chan FrameReadResult {
+    c := make(chan FrameReadResult)
+    go func() {
+		ascWritten := false
+        for {
+            header, payload, err := codecutil.ReadADTSFrame(r)
+			if !ascWritten {
+				asc, err := codecutil.ADTSHeaderToAudioSpecificConfig(header)
+				if err != nil {
+					c <- FrameReadResult{Err: err}
+					break
+				}
+				c <- FrameReadResult{Data: asc, Err: nil}
+				ascWritten = true
+			}
+            if err != nil {
+                c <- FrameReadResult{Err: err}
+                break
+            }
+            c <- FrameReadResult{Data: payload, Err: nil}
+        }
+        close(c)
+    }()
+    return c
+}
+
+type Scheduler struct {
+	// The duration of each type of frame.
+    AudioDuration int64
+    VideoDuration int64
+
+    // Channels to receive raw frames from lexer goroutines.
+    AudioInChan chan FrameReadResult
+    VideoInChan chan FrameReadResult
+}
+
+const SamplesPerFrame int64 = 1024
+const SampleRate int64 = 44100
+const NANO_PER_SECOND int64 = 1_000_000_000
+
+func NewScheduler(audio_r, video_r io.Reader) *Scheduler {
+	audioDurNs := (SamplesPerFrame * NANO_PER_SECOND) / SampleRate
+	videoDurNs := int64(NANO_PER_SECOND / 25)
+
+	return &Scheduler{
+		AudioDuration: audioDurNs,
+		VideoDuration: videoDurNs,
+		// Launch the wrappers for the unmodified lexers:
+		AudioInChan: StartAudioLexerWrapper(audio_r),
+		VideoInChan: StartVideoLexerWrapper(video_r),
+	}
+}
+
+// Run outputs synced audio and video to the encoder using the scheduler.
+func (s *Scheduler) Run(enc *flv.Encoder) {
+    var (
+        currentPTS int64 = 0
+        nextAudioPTS int64 = 0
+        nextVideoPTS int64 = 0
+		vidCount int64 = 0
+
+        // Buffers to hold frames received from the lexers
+        audioBuffer []byte
+        videoBuffer []byte
+    )
+
+    // Choose the faster tick rate (AudioDuration)
+    ticker := time.NewTicker(time.Duration(s.AudioDuration) * time.Nanosecond)
+    defer ticker.Stop()
+
+    for {
+		// audioInCase is the channel we read from. If audioBuffer is full (not nil),
+        // we set the channel to nil, disabling this case in the select statement.
+        var audioInCase chan FrameReadResult = nil
+        if audioBuffer == nil {
+            audioInCase = s.AudioInChan
+        }
+
+        var videoInCase chan FrameReadResult = nil
+        if videoBuffer == nil {
+            videoInCase = s.VideoInChan
+        }
+        select {
+        // A: Pre-buffer Audio: Check if audio buffer is empty AND there is a frame ready
+        case audioResult, ok := <-audioInCase:
+            if !ok || audioResult.Err == io.EOF {
+                s.AudioInChan = nil // Close this case when lexer is finished
+                break
+            }
+            if audioResult.Err != nil {
+                // Log and handle audio error
+                fmt.Printf("audio err: %v\n", audioResult.Err)
+                break
+            }
+            audioBuffer = audioResult.Data
+
+        // B: Pre-buffer Video: Check if video buffer is empty AND there is a frame ready
+        case videoResult, ok := <-videoInCase:
+            if !ok {
+                s.VideoInChan = nil // Close this case when lexer is finished
+                break
+            }
+            if videoResult.Err != nil {
+                // Log and handle video error
+                fmt.Printf("video err: %v\n", videoResult.Err)
+                fmt.Printf("video count: %d\n", vidCount)
+                // break
+            }
+            videoBuffer = videoResult.Data
+
+        // C: Timing Logic: The master clock tick
+        case tickTime := <-ticker.C:
+            currentPTS = tickTime.UnixNano()
+
+            // --- C1. Output Audio (If due and buffered) ---
+            if currentPTS >= nextAudioPTS && audioBuffer != nil {
+				enc.WriteAudio(audioBuffer)
+                nextAudioPTS += s.AudioDuration
+                audioBuffer = nil // Consume buffer
+            }
+
+            // --- C2. Output Video (If due and buffered) ---
+            if currentPTS >= nextVideoPTS && videoBuffer != nil {
+				enc.WriteVideo(videoBuffer)
+                nextVideoPTS += s.VideoDuration
+                videoBuffer = nil // Consume buffer
+				vidCount++
+            }
+
+            // D: Termination Check: Stop if both lexers are done and buffers are consumed
+            if s.AudioInChan == nil && s.VideoInChan == nil && audioBuffer == nil && videoBuffer == nil {
+				fmt.Printf("terminate\n")
+                return
+            }
+        }
+    }
+}
+
+// TestFromFile tests streaming from an video file comprising raw H.264 and an audio file containing an ADTS stream.
+// The test video file is supplied via the RTMP_TEST_VIDEO_FILE environment variable.
+// The test audio file is supplied via the RTMP_TEST_AUDIO_FILE environment variable.
 func TestFromFile(t *testing.T) {
 	testLog(0, "TestFromFile")
-	testFile := os.Getenv("RTMP_TEST_FILE")
-	if testFile == "" {
-		t.Skip("Skipping TestFromFile since no RTMP_TEST_FILE")
+	testVideoFile := os.Getenv("RTMP_TEST_VIDEO_FILE")
+	testAudioFile := os.Getenv("RTMP_TEST_AUDIO_FILE")
+	if testVideoFile == "" {
+		t.Skip("Skipping TestFromFile since no RTMP_TEST_VIDEO_FILE")
+	}
+	if testAudioFile == "" {
+		t.Skip("Skipping TestFromFile since no RTMP_TEST_AUDIO_FILE")
 	}
 	if testKey == "" {
 		t.Skip("Skipping TestFromFile since no RTMP_TEST_KEY")
@@ -236,11 +424,16 @@ func TestFromFile(t *testing.T) {
 	if err != nil {
 		t.Errorf("Dial failed with error: %v", err)
 	}
-	f, err := os.Open(testFile)
+	vidFile, err := os.Open(testVideoFile)
 	if err != nil {
 		t.Errorf("Open failed with error: %v", err)
 	}
-	defer f.Close()
+	defer vidFile.Close()
+	audioFile, err := os.Open(testAudioFile)
+	if err != nil {
+		t.Errorf("Open failed with error: %v", err)
+	}
+	defer audioFile.Close()
 
 	rs := &rtmpSender{conn: c}
 	// Pass RTMP session, true for stereo, and 25 FPS.
@@ -248,11 +441,8 @@ func TestFromFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create encoder: %v", err)
 	}
-	videoAdapter := &flv.DummyAudioDecorator{Encoder: flvEncoder}
-	err = h264.Lex(videoAdapter, f, time.Second/time.Duration(25))
-	if err != nil {
-		t.Errorf("Lexing and encoding failed with error: %v", err)
-	}
+	sched := NewScheduler(audioFile, vidFile)
+	sched.Run(flvEncoder)
 
 	err = c.Close()
 	if err != nil {

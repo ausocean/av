@@ -21,6 +21,7 @@ LICENSE
 package flv
 
 import (
+	"fmt"
 	"io"
 	"time"
 )
@@ -256,6 +257,7 @@ func (d *DummyAudioDecorator) Write(frame []byte) (int, error) {
 // writes to the encoders io.Writer destination.
 func (e *Encoder) WriteAudio(audioFrame []byte) (int, error) {
 	var totalWritten int = 0
+	fmt.Printf("audio")
 
 	if e.start.IsZero() {
 		// This is the first frame, so write the PreviousTagSize0.
