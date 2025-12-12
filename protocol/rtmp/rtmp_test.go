@@ -390,7 +390,6 @@ func (s *scheduler) Run(enc *flv.Encoder) {
 				enc.WriteVideo(videoBuffer)
 				nextVideoPTS += s.VideoDuration
 				videoBuffer = nil // Consume buffer
-				vidCount++
 			}
 
 			// D: Termination Check: Stop if both lexers are done and buffers are consumed
