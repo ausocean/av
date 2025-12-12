@@ -31,7 +31,7 @@ import (
 	"testing"
 	"time"
 
-	codecutil "github.com/ausocean/av/codec/aac"
+	"github.com/ausocean/av/codec/aac"
 	"github.com/ausocean/av/codec/h264"
 	"github.com/ausocean/av/container/flv"
 )
@@ -223,33 +223,33 @@ func (rs *rtmpSender) Write(p []byte) (int, error) {
 
 func (rs *rtmpSender) Close() error { return nil }
 
-// FrameReadResult: The internal communication structure from Lexers.
-type FrameReadResult struct {
+// frameReadResult: The internal communication structure from Lexers.
+type frameReadResult struct {
 	Data []byte
 	Err  error
 }
 
-// PipeWriter is a thread-safe io.Writer that simply sends data to a channel.
-type PipeWriter struct {
-	Output chan FrameReadResult
+// pipeWriter is a thread-safe io.Writer that simply sends data to a channel.
+type pipeWriter struct {
+	Output chan frameReadResult
 }
 
-func (p *PipeWriter) Write(data []byte) (n int, err error) {
+func (p *pipeWriter) Write(data []byte) (n int, err error) {
 	// Create a copy of the data, as the source buffer might be reused by the lexer
 	dataCopy := make([]byte, len(data))
 	copy(dataCopy, data)
 
-	p.Output <- FrameReadResult{Data: dataCopy, Err: nil}
+	p.Output <- frameReadResult{Data: dataCopy, Err: nil}
 	return len(data), nil
 }
 
-// StartVideoLexerWrapper wraps the h264 lexer and redirects its output into a channel.
-func StartVideoLexerWrapper(src io.Reader) chan FrameReadResult {
+// startVideoLexerWrapper wraps the h264 lexer and redirects its output into a channel.
+func startVideoLexerWrapper(src io.Reader) chan frameReadResult {
 	// 1. Create the output channel for the video frames
-	c := make(chan FrameReadResult)
+	c := make(chan frameReadResult)
 
 	// 2. Create the custom PipeWriter that directs writes to the channel 'c'
-	writer := &PipeWriter{Output: c}
+	writer := &pipeWriter{Output: c}
 
 	go func() {
 		// We use a zero delay because timing is handled by the central scheduler, not the lexer.
@@ -257,7 +257,7 @@ func StartVideoLexerWrapper(src io.Reader) chan FrameReadResult {
 
 		if err != nil && err != io.EOF {
 			// Send any non-EOF error back through the channel
-			c <- FrameReadResult{Err: err}
+			c <- frameReadResult{Err: err}
 		}
 		// When the lexer finishes (returns io.EOF), close the channel
 		close(c)
@@ -265,67 +265,66 @@ func StartVideoLexerWrapper(src io.Reader) chan FrameReadResult {
 	return c
 }
 
-// StartAudioLexerWrapper reads all ADTS frames into a channel.
-func StartAudioLexerWrapper(r io.Reader) chan FrameReadResult {
-	c := make(chan FrameReadResult)
+// startAudioLexerWrapper reads all ADTS frames into a channel.
+func startAudioLexerWrapper(r io.Reader) chan frameReadResult {
+	c := make(chan frameReadResult)
 	go func() {
 		ascWritten := false
 		for {
-			header, payload, err := codecutil.ReadADTSFrame(r)
+			header, payload, err := aac.ReadADTSFrame(r)
 			if !ascWritten {
-				asc, err := codecutil.ADTSHeaderToAudioSpecificConfig(header)
+				asc, err := aac.ADTSHeaderToAudioSpecificConfig(header)
 				if err != nil {
-					c <- FrameReadResult{Err: err}
+					c <- frameReadResult{Err: err}
 					break
 				}
-				c <- FrameReadResult{Data: asc, Err: nil}
+				c <- frameReadResult{Data: asc, Err: nil}
 				ascWritten = true
 			}
 			if err != nil {
-				c <- FrameReadResult{Err: err}
+				c <- frameReadResult{Err: err}
 				break
 			}
-			c <- FrameReadResult{Data: payload, Err: nil}
+			c <- frameReadResult{Data: payload, Err: nil}
 		}
 		close(c)
 	}()
 	return c
 }
 
-type Scheduler struct {
+type scheduler struct {
 	// The duration of each type of frame.
 	AudioDuration int64
 	VideoDuration int64
 
 	// Channels to receive raw frames from lexer goroutines.
-	AudioInChan chan FrameReadResult
-	VideoInChan chan FrameReadResult
+	AudioInChan chan frameReadResult
+	VideoInChan chan frameReadResult
 }
 
-const SamplesPerFrame int64 = 1024
-const SampleRate int64 = 44100
-const NANO_PER_SECOND int64 = 1_000_000_000
+const samplesPerFrame int64 = 1024
+const sampleRate int64 = 44100
+const nano_per_second int64 = 1_000_000_000
 
-func NewScheduler(audio_r, video_r io.Reader) *Scheduler {
-	audioDurNs := (SamplesPerFrame * NANO_PER_SECOND) / SampleRate
-	videoDurNs := int64(NANO_PER_SECOND / 25)
+func newScheduler(audio_r, video_r io.Reader) *scheduler {
+	audioDurNs := (samplesPerFrame * nano_per_second) / sampleRate
+	videoDurNs := int64(nano_per_second / 25)
 
-	return &Scheduler{
+	return &scheduler{
 		AudioDuration: audioDurNs,
 		VideoDuration: videoDurNs,
 		// Launch the wrappers for the unmodified lexers:
-		AudioInChan: StartAudioLexerWrapper(audio_r),
-		VideoInChan: StartVideoLexerWrapper(video_r),
+		AudioInChan: startAudioLexerWrapper(audio_r),
+		VideoInChan: startVideoLexerWrapper(video_r),
 	}
 }
 
 // Run outputs synced audio and video to the encoder using the scheduler.
-func (s *Scheduler) Run(enc *flv.Encoder) {
+func (s *scheduler) Run(enc *flv.Encoder) {
 	var (
 		currentPTS   int64 = 0
 		nextAudioPTS int64 = 0
 		nextVideoPTS int64 = 0
-		vidCount     int64 = 0
 
 		// Buffers to hold frames received from the lexers
 		audioBuffer []byte
@@ -339,12 +338,12 @@ func (s *Scheduler) Run(enc *flv.Encoder) {
 	for {
 		// audioInCase is the channel we read from. If audioBuffer is full (not nil),
 		// we set the channel to nil, disabling this case in the select statement.
-		var audioInCase chan FrameReadResult = nil
+		var audioInCase chan frameReadResult = nil
 		if audioBuffer == nil {
 			audioInCase = s.AudioInChan
 		}
 
-		var videoInCase chan FrameReadResult = nil
+		var videoInCase chan frameReadResult = nil
 		if videoBuffer == nil {
 			videoInCase = s.VideoInChan
 		}
@@ -371,7 +370,6 @@ func (s *Scheduler) Run(enc *flv.Encoder) {
 			if videoResult.Err != nil {
 				// Log and handle video error
 				fmt.Printf("video err: %v\n", videoResult.Err)
-				fmt.Printf("video count: %d\n", vidCount)
 				// break
 			}
 			videoBuffer = videoResult.Data
@@ -441,7 +439,7 @@ func TestFromFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create encoder: %v", err)
 	}
-	sched := NewScheduler(audioFile, vidFile)
+	sched := newScheduler(audioFile, vidFile)
 	sched.Run(flvEncoder)
 
 	err = c.Close()

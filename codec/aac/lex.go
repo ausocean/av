@@ -1,4 +1,22 @@
-package codecutil
+/*
+NAME
+  lex.go
+
+DESCRIPTION
+  lex.go provides a lexer to lex ADTS bytestreams into frames
+
+AUTHOR
+  Elliot Shine <elliot@ausocean.org>
+
+LICENSE
+  Copyright (C) 2025 the Australian Ocean Lab (AusOcean). All Rights Reserved.
+
+  The Software and all intellectual property rights associated
+  therewith, including but not limited to copyrights, trademarks,
+  patents, and trade secrets, are and will remain the exclusive
+  property of the Australian Ocean Lab (AusOcean).
+*/
+package aac
 
 import (
 	"encoding/binary"
