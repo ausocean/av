@@ -21,7 +21,6 @@ LICENSE
 package flv
 
 import (
-	"fmt"
 	"io"
 	"time"
 )

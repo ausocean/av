@@ -387,7 +387,7 @@ func (s *scheduler) Run(enc *flv.Encoder) {
 
 			// --- C2. Output Video (If due and buffered) ---
 			if currentPTS >= nextVideoPTS && videoBuffer != nil {
-				enc.WriteVideo(videoBuffer)
+				enc.Write(videoBuffer)
 				nextVideoPTS += s.VideoDuration
 				videoBuffer = nil // Consume buffer
 			}
