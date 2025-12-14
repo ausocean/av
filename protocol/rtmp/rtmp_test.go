@@ -193,11 +193,10 @@ func TestFromFrame(t *testing.T) {
 
 	const frameRate = 25
 	rs := &rtmpSender{conn: c}
-	flvEncoder, err := flv.NewEncoder(rs, true, frameRate)
+	videoAdapter, err := flv.NewEncoder(rs, true, true, frameRate)
 	if err != nil {
 		t.Errorf("Failed to create flv encoder with error: %v", err)
 	}
-	videoAdapter := &flv.DummyAudioDecorator{Encoder: flvEncoder}
 	err = h264.Lex(videoAdapter, bytes.NewReader(videoData), time.Second/time.Duration(frameRate))
 	if err != nil {
 		t.Errorf("Lexing failed with error: %v", err)
@@ -433,8 +432,8 @@ func TestFromFile(t *testing.T) {
 	defer audioFile.Close()
 
 	rs := &rtmpSender{conn: c}
-	// Pass RTMP session, true for stereo, and 25 FPS.
-	flvEncoder, err := flv.NewEncoder(rs, true, 25)
+	// Pass RTMP session and run at 25 FPS.
+	flvEncoder, err := flv.NewEncoder(rs, true, true, 25)
 	if err != nil {
 		t.Fatalf("failed to create encoder: %v", err)
 	}

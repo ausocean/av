@@ -180,6 +180,7 @@ func (s *frameScanner) readByte() (b byte, ok bool) {
 
 // Write takes raw h264 and encodes into flv, then
 // writes to the encoders io.Writer destination.
+// It implements the io.Writer interface.
 func (e *Encoder) Write(videoFrame []byte) (int, error) {
 	var frameType byte
 	var packetType byte
