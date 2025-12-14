@@ -57,15 +57,18 @@ type Encoder struct {
 	start           time.Time
 	stereoAudio     bool
 	audioConfigSent bool
+	dummyAudio      bool
 }
 
 // NewEncoder retuns a new FLV encoder.
-func NewEncoder(dst io.WriteCloser, stereoAudio bool, fps int) (*Encoder, error) {
+// The video and audio parameters are unused and are only there to retain compatibility.
+func NewEncoder(dst io.WriteCloser, video, audio bool, fps int) (*Encoder, error) {
 	e := Encoder{
 		dst:             dst,
 		fps:             fps,
-		stereoAudio:     stereoAudio,
+		stereoAudio:     true,
 		audioConfigSent: false,
+		dummyAudio:      true,
 	}
 	return &e, nil
 }
@@ -77,6 +80,13 @@ func (e *Encoder) getNextTimestamp() (timestamp uint32) {
 		return 0
 	}
 	return uint32(time.Now().Sub(e.start).Seconds() * float64(1000))
+}
+
+// SetDummyAudio disables or enables the sending of dummy audio frames at the same time as video frames.
+// After this function is called, a new audio config must be sent in the first WriteAudio operation.
+func (e *Encoder) SetDummyAudio(enabled bool) {
+	e.dummyAudio = enabled
+	e.audioConfigSent = false
 }
 
 // http://www.itu.int/rec/dologin_pub.asp?lang=e&id=T-REC-H.264-200305-S!!PDF-E&type=items
@@ -169,9 +179,9 @@ func (s *frameScanner) readByte() (b byte, ok bool) {
 	return b, true
 }
 
-// WriteVideo takes raw h264 and encodes into flv, then
+// Write takes raw h264 and encodes into flv, then
 // writes to the encoders io.Writer destination.
-func (e *Encoder) WriteVideo(videoFrame []byte) (int, error) {
+func (e *Encoder) Write(videoFrame []byte) (int, error) {
 	var frameType byte
 	var packetType byte
 	var totalWritten int = 0
@@ -218,46 +228,31 @@ func (e *Encoder) WriteVideo(videoFrame []byte) (int, error) {
 		return totalWritten, err
 	}
 
-	return totalWritten, nil
-}
-
-// An adapter that provides the io.Writer interface for WriteVideo.
-type VideoWriterAdapter struct {
-	Encoder *Encoder
-}
-
-// Write implements the io.Writer interface.
-// It takes in a single frame of raw h264 and encodes in in an flv.
-func (a *VideoWriterAdapter) Write(p []byte) (n int, err error) {
-	n, err = a.Encoder.WriteVideo(p)
-	return n, err
-}
-
-// A decorator that writes dummy audio at the same time as video.
-// Useful for when you don't want any audio.
-type DummyAudioDecorator struct {
-	Encoder *Encoder
-}
-
-// Write implements the io.Writer interface
-// It takes in a single frame of raw h264, writes dummy audio, and encodes them into an flv.
-func (d *DummyAudioDecorator) Write(frame []byte) (int, error) {
-	// If the audio config hasn't been sent yet, then write the dummy CSC
-	// Otherwise, write the normal dummy audio packet
-	if !d.Encoder.audioConfigSent {
-		d.Encoder.WriteAudio(dummyCSC)
+	// Do we need to send some dummy audio as well?
+	if e.dummyAudio {
+		// Do we need to send an audio specific config first?
+		if !e.audioConfigSent {
+			written, err = e.WriteAudio(dummyCSC)
+			totalWritten += written
+			if err != nil {
+				return totalWritten, err
+			}
+			e.audioConfigSent = true
+		}
+		written, err = e.WriteAudio(dummyDataPacket)
+		totalWritten += written
+		if err != nil {
+			return totalWritten, err
+		}
 	}
-	d.Encoder.WriteAudio(dummyDataPacket)
-	n, err := d.Encoder.WriteVideo(frame)
 
-	return n, err
+	return totalWritten, nil
 }
 
 // WriteAudio takes raw aac and encodes into flv, then
 // writes to the encoders io.Writer destination.
 func (e *Encoder) WriteAudio(audioFrame []byte) (int, error) {
 	var totalWritten int = 0
-	fmt.Printf("audio")
 
 	if e.start.IsZero() {
 		// This is the first frame, so write the PreviousTagSize0.
