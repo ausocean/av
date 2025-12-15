@@ -437,6 +437,7 @@ func TestFromFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create encoder: %v", err)
 	}
+	flvEncoder.SetDummyAudio(false)
 	sched := newScheduler(audioFile, vidFile)
 	sched.Run(flvEncoder)
 
