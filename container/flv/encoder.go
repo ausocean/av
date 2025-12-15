@@ -295,18 +295,6 @@ func (e *Encoder) WriteAudio(audioFrame []byte) (int, error) {
 	return totalWritten, nil
 }
 
-// An adapter that provides the io.Writer interface for WriteAudio.
-type AudioWriterAdapter struct {
-	Encoder *Encoder
-}
-
-// Write implements the io.Writer interface.
-// It takes in a single frame of raw aac and encodes in in an flv.
-func (a *AudioWriterAdapter) Write(p []byte) (n int, err error) {
-	n, err = a.Encoder.WriteAudio(p)
-	return n, err
-}
-
 // Close will close the encoder destination.
 func (e *Encoder) Close() error {
 	return e.dst.Close()

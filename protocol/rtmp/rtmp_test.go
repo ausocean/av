@@ -193,11 +193,11 @@ func TestFromFrame(t *testing.T) {
 
 	const frameRate = 25
 	rs := &rtmpSender{conn: c}
-	videoAdapter, err := flv.NewEncoder(rs, true, true, frameRate)
+	flvEncoder, err := flv.NewEncoder(rs, true, true, frameRate)
 	if err != nil {
 		t.Errorf("Failed to create flv encoder with error: %v", err)
 	}
-	err = h264.Lex(videoAdapter, bytes.NewReader(videoData), time.Second/time.Duration(frameRate))
+	err = h264.Lex(flvEncoder, bytes.NewReader(videoData), time.Second/time.Duration(frameRate))
 	if err != nil {
 		t.Errorf("Lexing failed with error: %v", err)
 	}
