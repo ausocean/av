@@ -182,9 +182,11 @@ func (s *frameScanner) readByte() (b byte, ok bool) {
 // writes to the encoders io.Writer destination.
 // It implements the io.Writer interface.
 func (e *Encoder) Write(videoFrame []byte) (int, error) {
-	var frameType byte
-	var packetType byte
-	var totalWritten int = 0
+	var (
+		frameType    byte
+		packetType   byte
+		totalWritten int
+	)
 
 	if e.start.IsZero() {
 		// This is the first frame, so write the PreviousTagSize0.
