@@ -16,7 +16,7 @@ imgpointsL = [] # 2d points in image plane.
 imgpointsR = [] # 2d points in image plane.
 
 imagesLeft = glob.glob('calibrationFiles/Left/*.png') # Path to left camera images
-imagesRight = glob.glob('calibrationFiles/Right/*.png') # Path to right camera images
+imagesRight = glob.glob('calibrationFiles/Right/*.png') # Path to rig2ht camera images
 
 for imgLeft, imgRight in zip(imagesLeft, imagesRight): # Zip images together
 
@@ -28,7 +28,7 @@ for imgLeft, imgRight in zip(imagesLeft, imagesRight): # Zip images together
     # Find the chess board corners
     retL, cornersL = cv.findChessboardCorners(grayL, chessboardSize, None)
     retR, cornersR = cv.findChessboardCorners(grayR, chessboardSize, None)
-
+    
     # If found, add object points, image points (after refining them)
     if retL and retR == True:
 
