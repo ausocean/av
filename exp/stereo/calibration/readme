@@ -1,0 +1,64 @@
+# Stereo Calibration README
+
+## Overview
+Calibrates a stereo camera pair using chessboard images and OpenCV. Produces rectification maps for undistorting/rectifying stereo frames and a Q matrix for depth reconstruction.
+
+## Requirements
+- Python 3.7+
+- OpenCV (cv2) with contrib modules
+- NumPy
+- Images: matching left/right chessboard photos
+
+Install:
+pip install opencv-python numpy
+
+## Files
+- calibration.py — main script (contains calibration and undistortRectify())
+- calibrationFiles/Left/*.png — left camera images
+- calibrationFiles/Right/*.png — right camera images
+- stereoMap.xml — output (created by script)
+
+## Configuration
+Edit top of calibration.py:
+- chessboardSize = (columns, rows)  # inner corners per row/column
+- frameSize = (width, height)       # camera resolution
+
+Place an equal number of ordered left/right images in the two folders (matching pairs).
+
+## Usage
+1. Populate calibrationFiles/Left and calibrationFiles/Right with paired chessboard images.
+2. Run:
+python calibration.py
+3. Script displays detected corners briefly and prints refined intrinsics.
+4. Outputs stereoMap.xml containing stereoMapL_x, stereoMapL_y, stereoMapR_x, stereoMapR_y.
+
+## API
+Function undistortRectify(frameR, frameL) returns (undistortedR, undistortedL) using saved maps.
+
+## Best practices (underwater)
+- Calibrate with the final housings and ports mounted — refraction at the glass/air/water interface changes effective intrinsics.
+- Use a rigid, waterproof calibration board (laminated or engraved) with known square size; ensure pattern is flat in water.
+- Print large high-contrast squares sized for your working distances; ensure corners remain visible in low light.
+- Capture the board at multiple depths and angles across the whole field of view to sample distortion and stereo geometry.
+- Keep cameras fixed and rigidly mounted during entire calibration; measure and record physical baseline (center-to-center) as a sanity check.
+- Synchronize captures (hardware or software) to avoid motion mismatch between left/right images.
+- Prefer short exposures and higher shutter speeds to reduce motion blur; increase ISO or lighting as needed.
+- Use consistent manual exposure and white balance across all calibration images; avoid automatic gain that changes between frames.
+- Minimize turbidity, bubbles on the port, and floating particulates; clean ports and board between captures.
+- Avoid placing the board too close to the port where refraction non-linearities and vignetting dominate; sample a practical range of working distances.
+- If using flat ports, expect stronger refraction effects off-axis; dome ports alter geometry differently — treat each port type as a separate calibration case.
+- Log environmental parameters (temperature, salinity) and note if calibration was done in freshwater vs seawater — refractive index changes can be relevant for precision work.
+- Acquire a large, diverse dataset (30–50 good pairs) and discard pairs with poor corner detection or mismatched ordering.
+- Verify results by remapping sample stereo frames and checking epipolar alignment and disparity consistency; consider re-calibrating if residual errors are large.
+
+## Notes / Troubleshooting
+- Ensure left/right image lists are in corresponding order (zip pairs).
+- chessboardSize must match the pattern used to capture images.
+- If no corners are detected, check image quality and lighting.
+- The code uses fixed intrinsics during stereoCalibrate; remove cv.CALIB_FIX_INTRINSIC if you want to optimize intrinsics jointly.
+
+## Outputs
+- stereoMap.xml — rectification maps for remap()
+- Printed camera matrices, rectification maps and Q matrix (via console prints)
+
+License: Use as needed.
