@@ -1,9 +1,7 @@
 import glob
 import os
-
 import cv2 as cv
 import numpy as np
-
 
 chessboardSize = (10,7) # Use (x-1, y-1) to the actual size of chessboad pattern
 frameSize = None # Resolution of both cameras.
