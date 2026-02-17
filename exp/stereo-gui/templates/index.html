@@ -6,7 +6,8 @@
         body { font-family: sans-serif; text-align: center; background: #222; color: #ddd; margin:0; padding: 20px; }
 
         .cam-container { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
-        .cam-box { width: 45%; min-width: 400px; background: #333; padding: 10px; border-radius: 8px; }
+        .cam-box { width: 45%; background: #333; padding: 10px; border-radius: 8px; }
+        .aspect-video {aspect-ratio: 16/9;}
         img { width: 100%; border: 2px solid #555; border-radius: 4px; }
 
         /* Settings Box */
@@ -38,11 +39,11 @@
     <div class="cam-container">
         <div class="cam-box">
             <h2>Left</h2>
-            <img src="/video_feed" />
+            <img class="aspect-video" src="/video_feed" />
         </div>
         <div class="cam-box">
             <h2>Right</h2>
-            <img src="http://{{ right_ip }}:5000/video_feed" />
+            <img class="aspect-video" src="http://{{ right_ip }}:5000/video_feed" />
         </div>
     </div>
 
@@ -140,7 +141,7 @@
             }
 
             // Send command
-            fetch('/set_controls', {
+            fetch('/set_controls_sync', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ af_mode: mode })
@@ -150,7 +151,7 @@
         function updateFocus() {
             const val = document.getElementById('focus-slider').value;
             document.getElementById('focus-val').innerText = val;
-            fetch('/set_controls', {
+            fetch('/set_controls_sync', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ af_mode: 0, lens_position: val })
@@ -158,7 +159,7 @@
         }
 
         function triggerAutofocus() {
-            fetch('/set_controls', {
+            fetch('/set_controls_sync', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ af_mode: 1, af_trigger: true })
@@ -172,7 +173,7 @@
 
             document.getElementById('exp-val').innerText = exposure;
 
-            fetch('/set_controls', {
+            fetch('/set_controls_sync', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ exposure: exposure, framerate: fps })
@@ -181,7 +182,7 @@
 
         function setAutoExposure() {
             document.getElementById('exp-val').innerText = "Auto";
-            fetch('/set_controls', {
+            fetch('/set_controls_sync', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ auto_exposure: true })
@@ -192,7 +193,7 @@
             const val = document.getElementById('res-select').value.split(',');
             if(!confirm("Cameras will briefly restart. Continue?")) return;
 
-            fetch('/set_resolution', {
+            fetch('/set_resolution_sync', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ width: parseInt(val[0]), height: parseInt(val[1]) })

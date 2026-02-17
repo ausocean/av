@@ -107,7 +107,7 @@ class CameraManager:
         self.picam2.configure(config)
 
         # 3. Setup Encoders
-        filepath = os.path.join(VIDEO_DIR, filename)
+        filepath = os.path.join(VIDEO_DIR, base_filename)
 
         # Main Recording Encoder (H.264 -> MP4 Container)
         rec_encoder = H264Encoder(bitrate=5000000)
@@ -125,7 +125,7 @@ class CameraManager:
 
         self.picam2.start()
 
-        return True, filename
+        return True, base_filename
 
     def capture_single_image(self, filename):
         """

@@ -20,12 +20,12 @@ LICENSE
 """
 import requests
 import datetime
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify, render_template, request
 from libcamera import controls
 import camera_shared # Import the shared file
 
 # --- Configuration ---
-RIGHT_IP = "192.168.1.102" # <--- Set IP of Right Node
+RIGHT_IP = "192.168.1.115" # <--- Set IP of Right Node
 app = Flask(__name__)
 cam = camera_shared.CameraManager(controls.rpi.SyncModeEnum.Server)
 
@@ -35,10 +35,10 @@ camera_shared.register_common_routes(app, cam)
 @app.route('/')
 def index():
     # Assumes you have moved index.html to /templates folder
-    return render_template('index.html', slave_ip=RIGHT_IP)
+    return render_template('index.html', right_ip=RIGHT_IP)
 
-@app.route('/set_controls', methods=['POST'])
-def set_controls():
+@app.route('/set_controls_sync', methods=['POST'])
+def set_controls_sync():
     # OVERRIDE: Left node must forward controls to Right node
     try:
         requests.post(f"http://{RIGHT_IP}:5000/set_controls", json=request.json, timeout=1)
@@ -47,6 +47,24 @@ def set_controls():
     # Apply locally
     success, msg = cam.apply_controls(request.json)
     return jsonify(success=success, message=msg)
+
+@app.route('/set_resolution_sync', methods=['POST'])
+def set_resolution_sync():
+    # OVERRIDE: Left node must forward controls to Right node
+    try:
+        requests.post(f"http://{RIGHT_IP}:5000/set_resolution", json=request.json, timeout=1)
+    except: pass
+
+    w = int(request.json.get('width', 1920))
+    h = int(request.json.get('height', 1080))
+    camera_manager.current_res = (w, h)
+
+    # Restart to apply resolution
+    try:
+        camera_manager.restart_preview()
+        return jsonify(success=True)
+    except Exception as e:
+        return jsonify(success=False, message=str(e))
 
 @app.route('/start_sync_record', methods=['POST'])
 def start_sync_record():
