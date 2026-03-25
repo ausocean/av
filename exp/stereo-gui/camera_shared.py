@@ -25,7 +25,7 @@ from flask import jsonify, request, send_from_directory, Response
 from picamera2 import Picamera2
 from picamera2.encoders import MJPEGEncoder, H264Encoder
 from picamera2.outputs import FileOutput
-from libcamera import controls
+from libcamera import controls, Transform
 
 # --- Configuration Constants ---
 VIDEO_DIR = "recordings"
@@ -40,16 +40,30 @@ class StreamingOutput(io.BufferedIOBase):
         with self.condition:
             self.frame = buf
             self.condition.notify_all()
+        return len(buf)
+
+class TimecodeFileOutput(FileOutput):
+    """Custom FileOutput that adds a timecode format v2 header."""
+    def outputtimestamp(self, timestamp):
+        if timestamp == 0:
+            print("# timecode format v2", file=self.ptsoutput, flush=True)
+        super().outputtimestamp(timestamp)
 
 # --- Core Camera Manager ---
 class CameraManager:
     def __init__(self, sync_mode):
+        print(f"DEBUG: CameraManager initializing with sync_mode={sync_mode}")
         self.picam2 = Picamera2()
         self.stream_output = StreamingOutput()
         self.recording_encoder = None
         self.current_res = (1920, 1080)
         self.preview_encoder = None
         self.ctrls = {'FrameRate': 24, 'SyncMode': sync_mode}
+        self.sync_difference = None
+        self.last_frame_duration = 0
+        self.correction_history = []
+        self.current_log_file = None
+        self.record_start_time = None
 
         # Initial Setup (Preview Mode)
         self.restart_preview()
@@ -62,7 +76,8 @@ class CameraManager:
         config = self.picam2.create_video_configuration(
             main={"size": self.current_res, "format": "YUV420"},
             lores={"size": (640, 480), "format": "YUV420"},
-            controls=self.ctrls
+            controls=self.ctrls,
+            transform=Transform()
         )
         self.picam2.configure(config)
 
@@ -71,13 +86,14 @@ class CameraManager:
         
         self.picam2.start_encoder(self.preview_encoder, FileOutput(self.stream_output), name="lores")
         self.picam2.start()
-        print("Camera: Preview Started")
 
     def stop_camera(self):
         """Safely stops recording and camera hardware."""
         if self.recording_encoder:
             self.picam2.stop_encoder(self.recording_encoder)
+            self.picam2.pre_callback = None
             self.recording_encoder = None
+            self.record_start_time = None
 
         # Stop preview encoder if running
         try: self.picam2.stop_encoder(self.preview_encoder)
@@ -85,6 +101,43 @@ class CameraManager:
 
         if self.picam2.started:
             self.picam2.stop()
+    
+    def log_metadata(self, req):
+        metadata = req.get_metadata()
+        if metadata['SyncReady']:
+            if self.sync_difference is None:
+                self.sync_difference = metadata['SyncTimer']
+                print(f"DEBUG: Sync difference: {self.sync_difference}")
+                self._log_to_file("INITIAL_DIFF", self.sync_difference)
+                self.last_frame_duration = metadata['FrameDuration']
+
+            frame_duration = metadata['FrameDuration']
+            if self.last_frame_duration != 0 and frame_duration != self.last_frame_duration:
+                # This correction value doesn't exactly match the one given by libcamera logs
+                # but that value isn't exposed in the metadata, so this is as close as we are going to get.
+                correction = self.last_frame_duration - frame_duration
+                print(f"DEBUG: Sync correction approx {correction} us")
+                
+                # Update history and log to file
+                self.correction_history.append(correction)
+                # Remove the oldest correction if the buffer is full.
+                if len(self.correction_history) > 10:
+                    self.correction_history.pop(0)
+                self._log_to_file("CORRECTION", correction)
+            else:
+                # Only update the last frame duration after a correction
+                self.last_frame_duration = frame_duration
+
+    def _log_to_file(self, event_type, value):
+        """Appends a sync event to the session's CSV log file."""
+        if not self.current_log_file:
+            return
+        try:
+            timestamp = datetime.datetime.now().isoformat()
+            with open(self.current_log_file, 'a') as f:
+                f.write(f"{timestamp},{event_type},{value}\n")
+        except Exception as e:
+            print(f"Error logging to file: {e}")
 
     def prepare_and_start_recording(self, base_filename):
         """
@@ -97,12 +150,19 @@ class CameraManager:
         if self.recording_encoder:
             return False, "Already recording"
 
+        # Reset sync tracking for new session
+        self.sync_difference = None
+        self.correction_history = []
+        self.last_frame_duration = 0
+        self.current_log_file = os.path.join(VIDEO_DIR, f"{base_filename}_sync.csv")
+
         self.stop_camera()
 
         config = self.picam2.create_video_configuration(
             main={"size": self.current_res, "format": "YUV420"},
             lores={"size": (640, 480), "format": "YUV420"},
-            controls=self.ctrls
+            controls=self.ctrls,
+            transform=Transform()
         )
         self.picam2.configure(config)
 
@@ -115,15 +175,21 @@ class CameraManager:
         video_filename = os.path.join(VIDEO_DIR, f"{base_filename}.h264")
         pts_filename = os.path.join(VIDEO_DIR, f"{base_filename}.txt")
 
-        output = FileOutput(video_filename, pts=pts_filename)
+        output = TimecodeFileOutput(video_filename, pts=pts_filename)
         
         self.preview_encoder = MJPEGEncoder()
 
         self.picam2.start_encoder(rec_encoder, output, name="main")
         self.picam2.start_encoder(self.preview_encoder, FileOutput(self.stream_output), name="lores")
         self.recording_encoder = rec_encoder
+        self.picam2.pre_callback = self.log_metadata
 
         self.picam2.start()
+        self.record_start_time = time.time()
+
+        print("DEBUG: Waiting for sync")
+        rec_encoder.sync.wait()
+        print("DEBUG: Sync achieved")
 
         return True, base_filename
 
@@ -144,7 +210,8 @@ class CameraManager:
             config = self.picam2.create_video_configuration(
                 main={"size": self.current_res, "format": "YUV420"},
                 lores={"size": (640, 480), "format": "YUV420"},
-                controls=self.ctrls
+                controls=self.ctrls,
+                transform=Transform()
             )
             self.picam2.configure(config)
 
@@ -250,7 +317,7 @@ def register_common_routes(app, camera_manager):
     @app.route('/list_recordings')
     def list_recordings():
         try:
-            files = sorted([f for f in os.listdir(VIDEO_DIR) if f.endswith(('.txt', '.h264', '.jpg'))], reverse=True)
+            files = sorted([f for f in os.listdir(VIDEO_DIR) if f.endswith(('.txt', '.h264', '.jpg', '.csv'))], reverse=True)
             return jsonify(files)
         except: return jsonify([])
 
@@ -264,3 +331,13 @@ def register_common_routes(app, camera_manager):
             os.remove(os.path.join(VIDEO_DIR, filename))
             return jsonify(success=True)
         except: return jsonify(success=False)
+
+    @app.route('/sync_status')
+    def sync_status():
+        return jsonify(
+            sync_ready=camera_manager.sync_difference is not None,
+            initial_diff=camera_manager.sync_difference,
+            corrections=camera_manager.correction_history,
+            recording=camera_manager.recording_encoder is not None,
+            start_time=camera_manager.record_start_time
+        )

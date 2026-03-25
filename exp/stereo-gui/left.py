@@ -25,7 +25,7 @@ from libcamera import controls
 import camera_shared # Import the shared file
 
 # --- Configuration ---
-RIGHT_IP = "192.168.1.115" # <--- Set IP of Right Node
+RIGHT_IP = "192.168.1.116" # <--- Set IP of Right Node
 app = Flask(__name__)
 cam = camera_shared.CameraManager(controls.rpi.SyncModeEnum.Server)
 
@@ -57,11 +57,11 @@ def set_resolution_sync():
 
     w = int(request.json.get('width', 1920))
     h = int(request.json.get('height', 1080))
-    camera_manager.current_res = (w, h)
+    cam.current_res = (w, h)
 
     # Restart to apply resolution
     try:
-        camera_manager.restart_preview()
+        cam.restart_preview()
         return jsonify(success=True)
     except Exception as e:
         return jsonify(success=False, message=str(e))
@@ -74,7 +74,9 @@ def start_sync_record():
     try:
         # 1. Trigger Right Node (Client)
         # It will arm itself and wait for our pulse
-        requests.post(f"http://{RIGHT_IP}:5000/start_record", timeout=5)
+        print(f"DEBUG: Triggering Right Node start_record at {RIGHT_IP}...")
+        resp = requests.post(f"http://{RIGHT_IP}:5000/start_record", timeout=5)
+        print(f"DEBUG: Right Node Response: {resp.status_code} - {resp.text}")
 
         # 3. Start Left Node (Server)
         # This will emit the pulses that start the Right node

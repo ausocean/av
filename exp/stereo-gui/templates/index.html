@@ -44,6 +44,12 @@
         <div class="cam-box">
             <h2>Right</h2>
             <img class="aspect-video" src="http://{{ right_ip }}:5000/video_feed" />
+            <div id="sync-panel" style="margin-top: 10px; padding: 10px; background: #222; border-radius: 4px; text-align: left; font-size: 0.9em; display: none;">
+                <div style="font-weight: bold; border-bottom: 1px solid #444; margin-bottom: 5px;">Sync Status (Right)</div>
+                <div>Initial Offset: <span id="sync-offset">-</span> us</div>
+                <div style="margin-top: 5px;">Recent Corrections:</div>
+                <div id="sync-corrections" style="height: 60px; overflow-y: auto; background: #111; padding: 5px; font-family: monospace; font-size: 0.8em;"></div>
+            </div>
         </div>
     </div>
 
@@ -98,7 +104,10 @@
         <button id="btn-photo" class="main-btn" onclick="takePhoto()">Take Photo (Sync)</button>
         <button id="btn-start" class="main-btn" onclick="toggleRecord(true)">Start Video (Sync)</button>
         <button id="btn-stop" class="main-btn" onclick="toggleRecord(false)">Stop Video</button>
-        <div id="status" style="margin-top: 15px; color: #aaa;">Ready</div>
+        <div id="status-container" style="margin-top: 15px;">
+            <div id="status" style="color: #aaa;">Ready</div>
+            <div id="recording-timer" style="font-size: 2.5em; font-family: monospace; color: #dc3545; margin-top: 10px; display: none;">00:00</div>
+        </div>
     </div>
 
     <div class="gallery-section">
@@ -249,6 +258,53 @@
                 });
             }).catch(() => document.getElementById(elementId).innerText = "Offline");
         }
+
+        // --- Sync Status Polling ---
+        function updateSyncStatus() {
+            // Poll Right camera for sync metrics
+            fetch(RIGHT_API + '/sync_status')
+                .then(res => res.json())
+                .then(data => {
+                    const panel = document.getElementById('sync-panel');
+                    if(data.initial_diff !== null) {
+                        panel.style.display = 'block';
+                        document.getElementById('sync-offset').innerText = data.initial_diff;
+                        
+                        const corrDiv = document.getElementById('sync-corrections');
+                        // Show corrections in reverse order (newest top)
+                        corrDiv.innerHTML = data.corrections.length 
+                            ? data.corrections.slice().reverse().map(c => `<div>${c > 0 ? '+' : ''}${c} us</div>`).join('')
+                            : '<div style="color:#666">No corrections yet</div>';
+                    } else {
+                        panel.style.display = 'none';
+                    }
+                }).catch(() => document.getElementById('sync-panel').style.display = 'none');
+
+            // Poll Left (Local) camera for recording timer
+            fetch('/sync_status')
+                .then(res => res.json())
+                .then(data => {
+                    const timerDiv = document.getElementById('recording-timer');
+                    if (data.recording && data.start_time) {
+                        timerDiv.style.display = 'block';
+                        const elapsed = Math.floor(Date.now() / 1000 - data.start_time);
+                        const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                        const secs = (elapsed % 60).toString().padStart(2, '0');
+                        timerDiv.innerText = `${mins}:${secs}`;
+                        
+                        // Sync buttons state just in case
+                        document.getElementById('btn-start').style.display = 'none';
+                        document.getElementById('btn-stop').style.display = 'inline-block';
+                        document.getElementById('status').innerText = "Recording...";
+                    } else {
+                        timerDiv.style.display = 'none';
+                        document.getElementById('btn-start').style.display = 'inline-block';
+                        document.getElementById('btn-stop').style.display = 'none';
+                    }
+                });
+        }
+
+        setInterval(updateSyncStatus, 500);
     </script>
 </body>
 </html>
