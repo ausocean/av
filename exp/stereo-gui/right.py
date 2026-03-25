@@ -35,18 +35,18 @@ def start_record():
     # RIGHT NODE: Starts as CLIENT (Passive)
     base_filename = datetime.datetime.now().strftime("right_%Y%m%d_%H%M%S")
 
-    try:
-        # Use the shared method to arm the system
-        # SyncMode.Client means it will wait for the Left node's pulse
-        success, msg = cam.prepare_and_start_recording(filename)
+    # Use a thread to avoid blocking the Left node's request (Deadlock prevention)
+    def _run_recording():
+        print(f"THREAD: Starting recording task for {base_filename}...")
+        try:
+            cam.prepare_and_start_recording(base_filename)
+            print(f"THREAD: Recording task finished for {base_filename}")
+        except Exception as e:
+            print(f"THREAD ERROR: {e}")
 
-        if success:
-            return jsonify(success=True, filename=filename)
-        else:
-            return jsonify(success=False, message=msg)
+    threading.Thread(target=_run_recording).start()
 
-    except Exception as e:
-        return jsonify(success=False, message=str(e))
+    return jsonify(success=True, filename=base_filename)
 
 @app.route('/capture_photo', methods=['POST'])
 def capture_photo():
