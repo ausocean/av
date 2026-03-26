@@ -26,7 +26,7 @@ from flask import jsonify, request, send_from_directory, Response
 from picamera2 import Picamera2
 from picamera2.encoders import MJPEGEncoder, H264Encoder
 from picamera2.outputs import FileOutput
-from libcamera import controls, Transform
+from libcamera import controls
 
 # --- Configuration Constants ---
 VIDEO_DIR = "recordings"
@@ -78,8 +78,7 @@ class CameraManager:
         config = self.picam2.create_video_configuration(
             main={"size": self.current_res, "format": "YUV420"},
             lores={"size": (640, 480), "format": "YUV420"},
-            controls=self.ctrls,
-            transform=Transform()
+            controls=self.ctrls
         )
         self.picam2.configure(config)
 
@@ -168,8 +167,7 @@ class CameraManager:
         config = self.picam2.create_video_configuration(
             main={"size": self.current_res, "format": "YUV420"},
             lores={"size": (640, 480), "format": "YUV420"},
-            controls=self.ctrls,
-            transform=Transform()
+            controls=self.ctrls
         )
         self.picam2.configure(config)
         self.current_recording_base = base_filename
@@ -218,8 +216,7 @@ class CameraManager:
             config = self.picam2.create_video_configuration(
                 main={"size": self.current_res, "format": "YUV420"},
                 lores={"size": (640, 480), "format": "YUV420"},
-                controls=self.ctrls,
-                transform=Transform()
+                controls=self.ctrls
             )
             self.picam2.configure(config)
 
