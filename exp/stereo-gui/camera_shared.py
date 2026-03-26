@@ -185,10 +185,10 @@ class CameraManager:
         self.picam2.pre_callback = self.log_metadata
 
         self.picam2.start()
-        self.record_start_time = time.time()
 
         print("DEBUG: Waiting for sync")
         rec_encoder.sync.wait()
+        self.record_start_time = time.time()
         print("DEBUG: Sync achieved")
 
         return True, base_filename
