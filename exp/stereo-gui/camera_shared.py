@@ -21,6 +21,7 @@ import os
 import io
 import threading
 import datetime
+import subprocess
 from flask import jsonify, request, send_from_directory, Response
 from picamera2 import Picamera2
 from picamera2.encoders import MJPEGEncoder, H264Encoder
@@ -64,6 +65,7 @@ class CameraManager:
         self.correction_history = []
         self.current_log_file = None
         self.record_start_time = None
+        self.current_recording_base = None
 
         # Initial Setup (Preview Mode)
         self.restart_preview()
@@ -94,6 +96,11 @@ class CameraManager:
             self.picam2.pre_callback = None
             self.recording_encoder = None
             self.record_start_time = None
+
+            # 2. Mux to MKV in background
+            if self.current_recording_base:
+                threading.Thread(target=self._mux_video_to_mkv, args=(self.current_recording_base,)).start()
+                self.current_recording_base = None
 
         # Stop preview encoder if running
         try: self.picam2.stop_encoder(self.preview_encoder)
@@ -165,6 +172,7 @@ class CameraManager:
             transform=Transform()
         )
         self.picam2.configure(config)
+        self.current_recording_base = base_filename
 
         # 3. Setup Encoders
         filepath = os.path.join(VIDEO_DIR, base_filename)
@@ -262,6 +270,35 @@ class CameraManager:
         except Exception as e:
             return False, str(e)
 
+    def _mux_video_to_mkv(self, base_filename):
+        """Encapsulates the raw H.264 and PTS files into an MKV container."""
+        try:
+            # mkvmerge --default-duration "0:[framerate]fps" -o "[filename].mkv" --timecodes "0:[pts file].txt" "[video file].h264"
+            fps = self.ctrls.get('FrameRate', 24)
+            video_file = os.path.join(VIDEO_DIR, f"{base_filename}.h264")
+            pts_file = os.path.join(VIDEO_DIR, f"{base_filename}.txt")
+            output_file = os.path.join(VIDEO_DIR, f"{base_filename}.mkv")
+
+            # Wait a moment for files to be fully closed and flushed to disk
+            time.sleep(1.0)
+
+            if not os.path.exists(video_file) or not os.path.exists(pts_file):
+                print(f"ERROR: Missing files for muxing: {video_file} or {pts_file}")
+                return
+
+            cmd = [
+                "mkvmerge",
+                "--default-duration", f"0:{fps}fps",
+                "-o", output_file,
+                "--timecodes", f"0:{pts_file}",
+                video_file
+            ]
+            print(f"DEBUG: Running mux command: {' '.join(cmd)}")
+            subprocess.run(cmd, check=True, capture_output=True)
+            print(f"DEBUG: Successfully muxed {output_file}")
+        except Exception as e:
+            print(f"ERROR: Muxing failed for {base_filename}: {e}")
+
 # --- Common Flask Routes Helper ---
 def register_common_routes(app, camera_manager):
     """Registers the routes used by BOTH Left and Right nodes."""
@@ -317,7 +354,7 @@ def register_common_routes(app, camera_manager):
     @app.route('/list_recordings')
     def list_recordings():
         try:
-            files = sorted([f for f in os.listdir(VIDEO_DIR) if f.endswith(('.txt', '.h264', '.jpg', '.csv'))], reverse=True)
+            files = sorted([f for f in os.listdir(VIDEO_DIR) if f.endswith(('.txt', '.h264', '.jpg', '.csv', '.mkv'))], reverse=True)
             return jsonify(files)
         except: return jsonify([])
 
