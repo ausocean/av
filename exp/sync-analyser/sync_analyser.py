@@ -6,6 +6,7 @@ import argparse
 # --- CONFIGURATION ---
 ROTATION_TIME_MS = 1000.0  
 MAX_TIMECODE_DIFF = 10.0   
+DOT_THRESHOLD = 100 # Change this if the white dot is not detected.
 
 def order_points(pts):
     """Sorts 4 points into: Top-Left, Top-Right, Bottom-Right, Bottom-Left."""
@@ -21,12 +22,11 @@ def order_points(pts):
 
 def extract_text_box(frame, hsv_frame):
     """Finds the 4 blue corners and warps the text area to a flat 600x200 rectangle."""
-    # Tighten the blue range slightly more
     lower_blue = np.array([100, 150, 50])
     upper_blue = np.array([135, 255, 255])
     mask_blue = cv2.inRange(hsv_frame, lower_blue, upper_blue)
     
-    # Use opening to remove small noise spots
+    # Use opening to remove small noise spots.
     kernel = np.ones((5, 5), np.uint8)
     mask_blue = cv2.morphologyEx(mask_blue, cv2.MORPH_OPEN, kernel)
     
@@ -60,7 +60,6 @@ def extract_text_box(frame, hsv_frame):
         if M["m00"] > 0:
             cx, cy = int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])
             corner_pts.append([cx, cy])
-            # Draw for internal debugging (will only be seen if box is extracted)
             cv2.drawMarker(frame, (cx, cy), (255, 0, 0), cv2.MARKER_SQUARE, 10, 2)
             
     if len(corner_pts) < 4:
@@ -139,7 +138,7 @@ def flatten_and_find_features(frame):
                 cv2.drawMarker(flat_clock, anchor_pt, (0, 255, 0), cv2.MARKER_CROSS, 20, 2)
 
     gray = cv2.cvtColor(flat_clock, cv2.COLOR_BGR2GRAY)
-    _, mask_white = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
+    _, mask_white = cv2.threshold(gray, DOT_THRESHOLD, 255, cv2.THRESH_BINARY)
     contours_white, _ = cv2.findContours(mask_white, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     dot_pt = None
