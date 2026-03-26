@@ -285,21 +285,31 @@
                 .then(res => res.json())
                 .then(data => {
                     const timerDiv = document.getElementById('recording-timer');
-                    if (data.recording && data.start_time) {
-                        timerDiv.style.display = 'block';
-                        const elapsed = Math.floor(Date.now() / 1000 - data.start_time);
-                        const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
-                        const secs = (elapsed % 60).toString().padStart(2, '0');
-                        timerDiv.innerText = `${mins}:${secs}`;
-                        
-                        // Sync buttons state just in case
-                        document.getElementById('btn-start').style.display = 'none';
-                        document.getElementById('btn-stop').style.display = 'inline-block';
-                        document.getElementById('status').innerText = "Recording...";
+                    const btnStart = document.getElementById('btn-start');
+                    const btnStop = document.getElementById('btn-stop');
+                    const statusDiv = document.getElementById('status');
+
+                    if (data.recording) {
+                        btnStart.style.display = 'none';
+                        btnStop.style.display = 'inline-block';
+
+                        if (data.start_time) {
+                            timerDiv.style.display = 'block';
+                            statusDiv.innerText = "Recording...";
+                            const elapsed = Math.max(0, Math.floor(Date.now() / 1000 - data.start_time));
+                            const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                            const secs = (elapsed % 60).toString().padStart(2, '0');
+                            timerDiv.innerText = `${mins}:${secs}`;
+                        } else {
+                            statusDiv.innerText = "Syncing...";
+                            timerDiv.style.display = 'block';
+                            timerDiv.innerText = "00:00";
+                        }
                     } else {
                         timerDiv.style.display = 'none';
-                        document.getElementById('btn-start').style.display = 'inline-block';
-                        document.getElementById('btn-stop').style.display = 'none';
+                        btnStart.style.display = 'inline-block';
+                        btnStop.style.display = 'none';
+                        // We don't overwrite status here as it might hold "Photo Saved" etc.
                     }
                 });
         }
