@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Dual Homography Sync (Large)</title>
+    <title>Sync Test</title>
     <style>
         body {
             margin: 0;
@@ -34,10 +34,9 @@
         let startTime = null;
         const rotationTimeMs = 1000;
 
-        // --- MASSIVELY SCALED UP VARIABLES ---
-        const radius = 300;       // Much wider orbit for the white dot
-        const markerSize = 60;    // Larger corners for the cameras to lock onto
-        const boxHalf = 400;      // Makes the green box 800x800 pixels
+        const radius = 300;
+        const markerSize = 60;
+        const boxHalf = 400;
 
         function draw(timestamp) {
             if (!startTime) startTime = timestamp;
@@ -62,20 +61,19 @@
             const dotX = cx + Math.cos(angle) * radius;
             const dotY = cy + Math.sin(angle) * radius;
 
-            // Spinning white dot (larger)
+            // Spinning white dot
             ctx.beginPath();
             ctx.arc(dotX, dotY, 40, 0, 2 * Math.PI);
             ctx.fillStyle = 'white';
             ctx.fill();
 
-            // Stationary RED center anchor (larger)
+            // Stationary RED center anchor
             ctx.beginPath();
             ctx.arc(cx, cy, 25, 0, 2 * Math.PI);
             ctx.fillStyle = 'red';
             ctx.fill();
 
             // --- 2. THE LARGE BLUE TEXT BOX ---
-            // Scaled up to 800x260 pixels
             const tx = 50, ty = 50, tw = 800, th = 260;
             ctx.fillStyle = '#0000FF'; // Pure Blue
             ctx.fillRect(tx, ty, markerSize, markerSize);
