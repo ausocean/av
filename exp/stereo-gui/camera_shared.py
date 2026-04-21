@@ -111,16 +111,17 @@ class CameraManager:
     def log_metadata(self, req):
         metadata = req.get_metadata()
         if metadata['SyncReady']:
+            frame_duration = metadata['FrameDuration']
             if self.sync_difference is None:
                 self.sync_difference = metadata['SyncTimer']
                 print(f"DEBUG: Sync difference: {self.sync_difference}")
                 self._log_to_file("INITIAL_DIFF", self.sync_difference)
-                self.last_frame_duration = metadata['FrameDuration']
+                self.last_frame_duration = frame_duration
 
-            frame_duration = metadata['FrameDuration']
             if self.last_frame_duration != 0 and frame_duration != self.last_frame_duration:
                 # This correction value doesn't exactly match the one given by libcamera logs
-                # but that value isn't exposed in the metadata, so this is as close as we are going to get.
+                # but that value isn't exposed in the metadata. This is close enough as we mostly
+                # care about the general magnitude of the correction.
                 correction = self.last_frame_duration - frame_duration
                 print(f"DEBUG: Sync correction approx {correction} us")
                 
@@ -131,12 +132,14 @@ class CameraManager:
                     self.correction_history.pop(0)
                 self._log_to_file("CORRECTION", correction)
             else:
-                # Only update the last frame duration after a correction
+                # Only update the last frame duration when there isn't a correction so that we
+                # don't get a duplicate correction.
                 self.last_frame_duration = frame_duration
 
     def _log_to_file(self, event_type, value):
         """Appends a sync event to the session's CSV log file."""
         if not self.current_log_file:
+            print("DEBUG: No log file set")
             return
         try:
             timestamp = datetime.datetime.now().isoformat()
@@ -147,11 +150,7 @@ class CameraManager:
 
     def prepare_and_start_recording(self, base_filename):
         """
-        The CRITICAL sequence for sync:
-        1. Stop Camera
-        2. Configure (Fixed FPS, Sync Mode)
-        3. Start Encoders (Arm them)
-        4. Start Camera (Fire/Catch Pulse)
+        Restart the camera and start recording.
         """
         if self.recording_encoder:
             return False, "Already recording"
@@ -173,9 +172,6 @@ class CameraManager:
         self.current_recording_base = base_filename
 
         # 3. Setup Encoders
-        filepath = os.path.join(VIDEO_DIR, base_filename)
-
-        # Main Recording Encoder (H.264 -> MP4 Container)
         rec_encoder = H264Encoder(bitrate=5000000)
         rec_encoder.sync_enable = True
         video_filename = os.path.join(VIDEO_DIR, f"{base_filename}.h264")
@@ -201,8 +197,7 @@ class CameraManager:
 
     def capture_single_image(self, filename):
         """
-        Performs a synchronized capture sequence:
-        Stop -> Config(Sync) -> Start -> Capture -> Restart Preview
+        Capture a single image.
         """
         if self.recording_encoder:
             return False, "Cannot capture while recording"
@@ -270,7 +265,6 @@ class CameraManager:
     def _mux_video_to_mkv(self, base_filename):
         """Encapsulates the raw H.264 and PTS files into an MKV container."""
         try:
-            # mkvmerge --default-duration "0:[framerate]fps" -o "[filename].mkv" --timecodes "0:[pts file].txt" "[video file].h264"
             fps = self.ctrls.get('FrameRate', 24)
             video_file = os.path.join(VIDEO_DIR, f"{base_filename}.h264")
             pts_file = os.path.join(VIDEO_DIR, f"{base_filename}.txt")
@@ -290,7 +284,6 @@ class CameraManager:
                 "--timecodes", f"0:{pts_file}",
                 video_file
             ]
-            print(f"DEBUG: Running mux command: {' '.join(cmd)}")
             subprocess.run(cmd, check=True, capture_output=True)
             print(f"DEBUG: Successfully muxed {output_file}")
         except Exception as e:
