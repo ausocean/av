@@ -6,32 +6,21 @@ from sync_analyser import analyze_sync
 
 def find_pairs(directory):
     """Finds pairs of left_*.mkv and right_*.mkv files in the given directory."""
+    # Regex to match left_YYYYMMDD_HHMMSS
+    pattern = re.compile(r"left_(\d{8}_\d{6})\.mkv")
     files = os.listdir(directory)
-    mkv_files = [f for f in files if f.endswith(".mkv")]
+    mkv_files = [(f, match.group(1)) for f in files if (match := pattern.match(f))]
     
-    pairs = {}
-    # Regex to match left_YYYYMMDD_HHMMSS or right_YYYYMMDD_HHMMSS
-    pattern = re.compile(r"(left|right)_(\d{8}_\d{6})\.mkv")
-    
-    for f in mkv_files:
-        match = pattern.match(f)
-        if match:
-            side, timestamp = match.groups()
-            if timestamp not in pairs:
-                pairs[timestamp] = {}
-            pairs[timestamp][side] = f
-            
-    # Filter only those that have both left and right
     valid_pairs = []
-    for ts, sides in pairs.items():
-        if "left" in sides and "right" in sides:
+    for file, ts in mkv_files:
+        if f"right_{ts}.mkv" in files:
             valid_pairs.append({
                 "timestamp": ts,
-                "left": os.path.join(directory, sides["left"]),
-                "right": os.path.join(directory, sides["right"])
+                "left": os.path.join(directory, file),
+                "right": os.path.join(directory, f"right_{ts}.mkv")
             })
             
-    return sorted(valid_pairs, key=lambda x: x["timestamp"])
+    return valid_pairs
 
 def main():
     parser = argparse.ArgumentParser(description="Bulk analyze stereo video synchronization.")
