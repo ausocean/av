@@ -45,7 +45,7 @@ To ensure accuracy, the tool uses the **Interquartile Range (IQR)** method to fi
 
 Install dependencies via pip:
 ```bash
-pip install opencv-python numpy
+pip install -r requrements.txt
 ```
 
 ## Video Format

@@ -20,25 +20,39 @@ def order_points(pts):
     rect[3] = pts[np.argmax(diff)] 
     return rect
 
-def extract_text_box(frame, hsv_frame):
-    """Finds the 4 blue corners and warps the text area to a flat 600x200 rectangle."""
-    lower_blue = np.array([100, 150, 50])
-    upper_blue = np.array([135, 255, 255])
-    mask_blue = cv2.inRange(hsv_frame, lower_blue, upper_blue)
+def find_largest_centroid(mask, min_area=20):
+    """Finds the centroid of the largest contour in a mask if its area > min_area."""
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return None, None
+        
+    largest = max(contours, key=cv2.contourArea)
+    if cv2.contourArea(largest) < min_area:
+        return None, None
+        
+    M = cv2.moments(largest)
+    if M["m00"] > 0:
+        center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+        return center, largest
+    return None, None
+
+def find_and_warp_marker_box(frame, hsv_frame, lower_color, upper_color, width, height, min_area=30, marker_draw_color=None):
+    """
+    Finds 4 markers of a specific color and warps the area between them to a flat (width x height) rectangle.
+    Returns the warped image if successful, otherwise None.
+    """
+    mask = cv2.inRange(hsv_frame, lower_color, upper_color)
     
     # Use opening to remove small noise spots.
     kernel = np.ones((5, 5), np.uint8)
-    mask_blue = cv2.morphologyEx(mask_blue, cv2.MORPH_OPEN, kernel)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
     
-    contours_blue, _ = cv2.findContours(mask_blue, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
-    # Filter for markers that are:
-    # 1. Broadly the right size (not too small, not like huge background objects)
-    # 2. Relatively compact (like a dot or square, not a long line or fuzzy cloud)
     potential_corners = []
-    for c in contours_blue:
+    for c in contours:
         area = cv2.contourArea(c)
-        if 50 < area < 3000: # markers are usually small blobs
+        if area > min_area:
             rect = cv2.minAreaRect(c)
             (w, h) = rect[1]
             if w > 0 and h > 0:
@@ -46,12 +60,10 @@ def extract_text_box(frame, hsv_frame):
                 if aspect_ratio < 2.5: # must be roughly square/round
                     potential_corners.append(c)
     
-    # Return a blank black box if we don't have at least 4 candidates
     if len(potential_corners) < 4:
-        return np.zeros((200, 600, 3), dtype=np.uint8)
+        return None
 
-    # Take the 4 "best" candidates (closest to the average area of candidates)
-    # This helps if we have 4 markers and some smaller/larger noise
+    # Take the 4 "best" candidates (largest ones)
     potential_corners = sorted(potential_corners, key=cv2.contourArea, reverse=True)[:4]
     
     corner_pts = []
@@ -60,10 +72,11 @@ def extract_text_box(frame, hsv_frame):
         if M["m00"] > 0:
             cx, cy = int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])
             corner_pts.append([cx, cy])
-            cv2.drawMarker(frame, (cx, cy), (255, 0, 0), cv2.MARKER_SQUARE, 10, 2)
+            if marker_draw_color is not None:
+                cv2.drawMarker(frame, (cx, cy), marker_draw_color, cv2.MARKER_SQUARE, 10, 2)
             
     if len(corner_pts) < 4:
-        return np.zeros((200, 600, 3), dtype=np.uint8)
+        return None
 
     corner_pts = np.array(corner_pts, dtype="float32")
     
@@ -73,99 +86,106 @@ def extract_text_box(frame, hsv_frame):
         for j in range(i + 1, 4):
             dist = np.linalg.norm(corner_pts[i] - corner_pts[j])
             if dist < min_dist:
-                return np.zeros((200, 600, 3), dtype=np.uint8)
+                return None
 
     ordered_pts = order_points(corner_pts)
     
-    # Stretch the text box to 600x200
-    dst_pts = np.array([[0, 0], [599, 0], [599, 199], [0, 199]], dtype="float32")
+    dst_pts = np.array([[0, 0], [width-1, 0], [width-1, height-1], [0, height-1]], dtype="float32")
     matrix = cv2.getPerspectiveTransform(ordered_pts, dst_pts)
-    flat_text = cv2.warpPerspective(frame, matrix, (600, 200))
+    warped = cv2.warpPerspective(frame, matrix, (width, height))
     
-    # Draw a blue border around it for style
+    return warped
+
+def extract_text_box(frame, hsv_frame):
+    """Finds the 4 blue corners and warps the text area to a flat 600x200 rectangle."""
+    lower_blue = np.array([100, 150, 50])
+    upper_blue = np.array([135, 255, 255])
+    
+    flat_text = find_and_warp_marker_box(frame, hsv_frame, lower_blue, upper_blue, 600, 200, min_area=50, marker_draw_color=(255, 0, 0))
+    
+    if flat_text is None:
+        return np.zeros((200, 600, 3), dtype=np.uint8)
+
+    # Draw a blue border around it
     cv2.rectangle(flat_text, (0,0), (599,199), (255,0,0), 4)
     return flat_text
+
+def extract_clock_box(frame, hsv_frame):
+    """Finds the 4 green corners and warps the clock area to a flat 600x600 rectangle."""
+    lower_green = np.array([40, 100, 100])
+    upper_green = np.array([80, 255, 255])
+    
+    flat_clock = find_and_warp_marker_box(frame, hsv_frame, lower_green, upper_green, 600, 600, min_area=30)
+    
+    if flat_clock is None:
+        blank_clock = cv2.resize(frame, (600, 600))
+        cv2.putText(blank_clock, "Waiting for 4 green corners...", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        return False, blank_clock
+
+    return True, flat_clock
+
+def find_central_anchor(clock, clock_hsv):
+    """Finds the central red anchor point."""
+    lower_red1, upper_red1 = np.array([0, 120, 70]), np.array([10, 255, 255])
+    lower_red2, upper_red2 = np.array([170, 120, 70]), np.array([180, 255, 255])
+    mask_red = cv2.bitwise_or(cv2.inRange(clock_hsv, lower_red1, upper_red1), 
+                              cv2.inRange(clock_hsv, lower_red2, upper_red2))
+    
+    anchor_pt, anchor_contour = find_largest_centroid(mask_red, min_area=20)
+    if anchor_pt:
+        cv2.drawContours(clock, [anchor_contour], -1, (255, 0, 0), 2)
+        cv2.drawMarker(clock, anchor_pt, (0, 255, 0), cv2.MARKER_CROSS, 20, 2)
+    return anchor_pt
+
+def find_hand(clock):
+    """Finds the white clock hand."""
+    gray = cv2.cvtColor(clock, cv2.COLOR_BGR2GRAY)
+    _, mask_white = cv2.threshold(gray, DOT_THRESHOLD, 255, cv2.THRESH_BINARY)
+    
+    dot_pt, dot_contour = find_largest_centroid(mask_white, min_area=50)
+    if dot_pt:
+        cv2.drawContours(clock, [dot_contour], -1, (255, 0, 255), 2)
+        cv2.drawMarker(clock, dot_pt, (255, 0, 0), cv2.MARKER_CROSS, 20, 2)
+    return dot_pt
+
+def calculate_angle(anchor_pt, hand_pt):
+    """Calculates the angle of the clock hand in degrees."""
+    dy = hand_pt[1] - anchor_pt[1]
+    dx = hand_pt[0] - anchor_pt[0]
+    angle_rad = math.atan2(dy, dx)
+    angle_deg = math.degrees(angle_rad)
+    if angle_deg < 0: angle_deg += 360
+    return angle_deg
 
 def flatten_and_find_features(frame):
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     
-    # --- 1. EXTRACT THE TEXT BOX ---
-    flat_text = extract_text_box(frame, hsv)
+    textbox = extract_text_box(frame, hsv)
     
-    # --- 2. EXTRACT THE CLOCK BOX ---
-    lower_green = np.array([40, 100, 100])
-    upper_green = np.array([80, 255, 255])
-    mask_green = cv2.inRange(hsv, lower_green, upper_green)
+    found_clock, clock = extract_clock_box(frame, hsv)
     
-    contours_green, _ = cv2.findContours(mask_green, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    valid_corners = [c for c in contours_green if cv2.contourArea(c) > 30]
+    if not found_clock:
+        return None, np.vstack((clock, textbox))
     
-    if len(valid_corners) < 4:
-        blank_clock = cv2.resize(frame, (600, 600))
-        cv2.putText(blank_clock, "Waiting for 4 green corners...", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-        return None, np.vstack((blank_clock, flat_text))
-
-    valid_corners = sorted(valid_corners, key=cv2.contourArea, reverse=True)[:4]
-    corner_pts = []
-    for c in valid_corners:
-        M = cv2.moments(c)
-        if M["m00"] > 0:
-            corner_pts.append([int(M["m10"]/M["m00"]), int(M["m01"]/M["m00"])])
-            
-    corner_pts = np.array(corner_pts, dtype="float32")
-    ordered_pts = order_points(corner_pts)
+    clock_hsv = cv2.cvtColor(clock, cv2.COLOR_BGR2HSV)
     
-    dst_pts = np.array([[0, 0], [599, 0], [599, 599], [0, 599]], dtype="float32")
-    matrix = cv2.getPerspectiveTransform(ordered_pts, dst_pts)
-    flat_clock = cv2.warpPerspective(frame, matrix, (600, 600))
+    # Locate red anchor point (center of clock)
+    anchor_pt = find_central_anchor(clock, clock_hsv)
     
-    # --- 3. DO THE MATH ON THE FLAT CLOCK ---
-    flat_hsv = cv2.cvtColor(flat_clock, cv2.COLOR_BGR2HSV)
-    
-    lower_red1, upper_red1 = np.array([0, 120, 70]), np.array([10, 255, 255])
-    lower_red2, upper_red2 = np.array([170, 120, 70]), np.array([180, 255, 255])
-    mask_red = cv2.bitwise_or(cv2.inRange(flat_hsv, lower_red1, upper_red1), 
-                              cv2.inRange(flat_hsv, lower_red2, upper_red2))
-    
-    contours_red, _ = cv2.findContours(mask_red, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    anchor_pt = None
-    if contours_red:
-        largest_red = max(contours_red, key=cv2.contourArea)
-        if cv2.contourArea(largest_red) > 20: 
-            M_red = cv2.moments(largest_red)
-            if M_red["m00"] > 0:
-                anchor_pt = (int(M_red["m10"]/M_red["m00"]), int(M_red["m01"]/M_red["m00"]))
-                cv2.drawMarker(flat_clock, anchor_pt, (0, 255, 0), cv2.MARKER_CROSS, 20, 2)
-
-    gray = cv2.cvtColor(flat_clock, cv2.COLOR_BGR2GRAY)
-    _, mask_white = cv2.threshold(gray, DOT_THRESHOLD, 255, cv2.THRESH_BINARY)
-    contours_white, _ = cv2.findContours(mask_white, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    dot_pt = None
-    if contours_white:
-        largest_white = max(contours_white, key=cv2.contourArea)
-        cv2.drawContours(flat_clock, [largest_white], -1, (255, 0, 255), 2)
-        if cv2.contourArea(largest_white) > 50: 
-            M_white = cv2.moments(largest_white)
-            if M_white["m00"] > 0:
-                dot_pt = (int(M_white["m10"]/M_white["m00"]), int(M_white["m01"]/M_white["m00"]))
-                cv2.drawMarker(flat_clock, dot_pt, (255, 0, 0), cv2.MARKER_CROSS, 20, 2)
+    # Locate clock hand
+    hand_pt = find_hand(clock)
 
     angle_deg = None
-    if anchor_pt and dot_pt:
-        cv2.line(flat_clock, anchor_pt, dot_pt, (0, 255, 255), 2)
-        dy = dot_pt[1] - anchor_pt[1]
-        dx = dot_pt[0] - anchor_pt[0]
-        angle_rad = math.atan2(dy, dx)
-        angle_deg = math.degrees(angle_rad)
-        if angle_deg < 0: angle_deg += 360
-        cv2.putText(flat_clock, f"{angle_deg:.1f} deg", (dot_pt[0] + 10, dot_pt[1]), 
+    if anchor_pt and hand_pt:
+        cv2.line(clock, anchor_pt, hand_pt, (0, 255, 255), 2)
+        angle_deg = calculate_angle(anchor_pt, hand_pt)
+        cv2.putText(clock, f"{angle_deg:.1f} deg", (hand_pt[0] + 10, hand_pt[1]), 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
 
-    cv2.rectangle(flat_clock, (0,0), (599,599), (0,255,0), 4)
+    cv2.rectangle(clock, (0,0), (599,599), (0,255,0), 4)
 
-    # --- 4. STACK THE CLOCK AND TEXT TOGETHER ---
-    final_column = np.vstack((flat_clock, flat_text))
+    # Stack the clock and text together
+    final_column = np.vstack((clock, textbox))
     
     return angle_deg, final_column
 
@@ -197,13 +217,17 @@ def analyze_sync(left_vid_path, right_vid_path, headless=False):
     paused = False
     
     while ret_l and ret_r:
+        # Ensure that the two videos are roughly in sync using the PTS.
+        # If they aren't, skip the frame that is behind.
         ts_l = left_cap.get(cv2.CAP_PROP_POS_MSEC)
         ts_r = right_cap.get(cv2.CAP_PROP_POS_MSEC)
         
         if ts_l < ts_r - MAX_TIMECODE_DIFF:
+            print(f"Skipping left frame {ts_l} (too far behind right frame {ts_r})")
             ret_l, frame_l = left_cap.read()
             continue
         elif ts_r < ts_l - MAX_TIMECODE_DIFF:
+            print(f"Skipping right frame {ts_r} (too far behind left frame {ts_l})")
             ret_r, frame_r = right_cap.read()
             continue
             
