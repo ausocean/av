@@ -3,15 +3,23 @@
 ## Overview
 Calibrates a stereo camera pair using chessboard images and OpenCV. Produces rectification maps for undistorting/rectifying stereo frames and a Q matrix for depth reconstruction.
 
-## Requirements
-- Python 3.7+
-- OpenCV (cv2) with contrib modules
-- NumPy
-- Images: matching left/right chessboard photos
+# Usage
 
-Install:
-pip install opencv-python numpy
+1. Install the required dependencies
 
+pip install requirements.txt
+
+1. Run thescript with the calibration settings file:
+
+python [calibrate.py](http://calibrate.py) calibration_settings.yaml
+
+# Calibration steps
+
+## Step 1: Power left and right camera
+
+## Step 2: Save calibration frames for single cameras
+
+##
 ## Files
 - calibration.py — main script (contains calibration and undistortRectify())
 - calibrationFiles/Left/*.png — left camera images

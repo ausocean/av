@@ -1,6 +1,5 @@
 import argparse
 import os
-import sys
 import cv2 as cv
 import numpy as np
 
@@ -10,11 +9,15 @@ DEFAULT_LEFT_VIDEO = (
 DEFAULT_RIGHT_VIDEO = (
     r"C:\Users\jonty\OneDrive - Flinders\Desktop\AusOcean\Stereo\testVideo\testR.mp4"
 )
+
 DEFAULT_MAP_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "calibration", "stereoMap.xml")
 )
 
 def load_stereo_maps(path):
+    """
+    Load stereo rectification maps from an OpenCV XML file. 
+    """
     print(f"Loading stereo maps from: {path}")
     if not os.path.exists(path):
         raise FileNotFoundError(f"stereoMap.xml not found: {path}")

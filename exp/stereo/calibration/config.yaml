@@ -1,0 +1,7 @@
+logging_level: DEBUG
+chessboard_size: [9,13] # Use (x-1, y-1) to the actual size of chessboad pattern
+checkerboard_squares_size: 40 # Size of a square in your defined unit (point, millimeter,etc).
+frame_size: None # Resolution of both cameras.
+interval_seconds: 4 # Time interval (in seconds) between capturing frames for calibration. Adjust as needed.
+recording_offset: 3 # Time offset (in seconds) to start recording frames after the program starts.
+fisheye : False # Set to True if using fisheye lenses, otherwise set to False for standard lenses.
